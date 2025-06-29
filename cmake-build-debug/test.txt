@@ -1,0 +1,18 @@
+PROCEDURE proc(BYREF x:INTEGER, y:INTEGER)
+	x <- x + 1
+	y <- y + 1
+
+	OUTPUT x
+	OUTPUT y
+ENDPROCEDURE
+
+DECLARE x : INTEGER
+DECLARE y:INTEGER
+
+x <- 10
+y <- 20
+
+CALL proc(x, y)
+
+OUTPUT x
+OUTPUT y

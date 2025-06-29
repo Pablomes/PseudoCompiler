@@ -1,0 +1,80 @@
+#ifndef PSEUDOCOMPILER_BYTECODE_H
+#define PSEUDOCOMPILER_BYTECODE_H
+
+#include "common.h"
+
+typedef enum {
+    NOP,
+
+    LOAD_INT, LOAD_REAL, LOAD_CHAR, LOAD_BOOL, LOAD_STRING,
+    CREATE_ARRAY,
+
+    STORE_INT, STORE_REAL, STORE_CHAR, STORE_BOOL, STORE_REF,
+    FETCH_INT, FETCH_REAL, FETCH_CHAR, FETCH_BOOL, FETCH_REF,
+
+    CALL_SUB, DO_CALL, RETURN, RETURN_NIL,
+
+    RSTORE_INT, RSTORE_REAL, RSTORE_CHAR, RSTORE_BOOL, RSTORE_REF,
+    RFETCH_INT, RFETCH_REAL, RFETCH_CHAR, RFETCH_BOOL, RFETCH_REF,
+
+    FETCH_ARRAY_ELEM, STORE_ARRAY_ELEM,
+
+    STORE_REF_INT, STORE_REF_REAL, STORE_REF_CHAR, STORE_REF_BOOL,
+    FETCH_REF_INT, FETCH_REF_REAL, FETCH_REF_CHAR, FETCH_REF_BOOL,
+
+    CAST_INT_REAL, CAST_INT_CHAR, CAST_CHAR_INT,
+
+    ADD_INT, ADD_REAL, MINUS_INT, MINUS_REAL, MULT_INT, MULT_REAL, DIV_INT, DIV_REAL,
+    MOD_INT, MOD_REAL, FDIV_INT, FDIV_REAL, POW_INT, POW_REAL,
+
+    CONCAT,
+
+    EQ_INT, EQ_REAL, EQ_BOOL, EQ_REF, EQ_STRING,
+    LESS_INT, LESS_REAL, LESS_BOOL, LESS_REF, LESS_STRING,
+    LESS_EQ_INT, LESS_EQ_REAL, LESS_EQ_BOOL, LESS_EQ_REF, LESS_EQ_STRING,
+    NEQ_INT, NEQ_REAL, NEQ_BOOL, NEQ_REF, NEQ_STRING,
+    GREATER_INT, GREATER_REAL, GREATER_BOOL, GREATER_REF, GREATER_STRING,
+    GREATER_EQ_INT, GREATER_EQ_REAL, GREATER_EQ_BOOL, GREATER_EQ_REF, GREATER_EQ_STRING,
+
+    AND, OR,
+
+    NEG_INT, NEG_REAL, NOT,
+
+    POP_1B, POP_4B, POP_8B,
+
+    COPY_INT,
+
+    INPUT_INT, INPUT_REAL, INPUT_CHAR, INPUT_BOOL, INPUT_STRING,
+    OUTPUT_INT, OUTPUT_REAL, OUTPUT_CHAR, OUTPUT_BOOL, OUTPUT_REF, OUTPUT_STRING, OUTPUT_NL,
+
+    RINPUT_INT, RINPUT_REAL, RINPUT_CHAR, RINPUT_BOOL, RINPUT_STRING,
+
+    B_FALSE, BRANCH,
+
+    GET_REF, RGET_REF,
+
+    EXIT
+} Instruction;
+
+typedef struct {
+    byte* stream;
+    int count;
+    int capacity;
+} BytecodeStream;
+
+void initBytecodeStream(BytecodeStream* bs);
+void freeBytecodeStream(BytecodeStream* bs);
+
+void addBytecode(BytecodeStream* bs, byte b);
+void addInstruction(BytecodeStream* bs, Instruction op);
+
+void insertAtPos(BytecodeStream* bs, byte b, int pos);
+
+int getNextPos(BytecodeStream* bs);
+
+void printBytestream(BytecodeStream* bs);
+
+bool genBinFile(BytecodeStream* bs, const char* fileName);
+bool readBinFile(BytecodeStream* bs, const char* fileName);
+
+#endif //PSEUDOCOMPILER_BYTECODE_H

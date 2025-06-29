@@ -1,0 +1,17 @@
+# ninja log v6
+11	337	7724820413994905	CMakeFiles/PseudoCompiler.dir/main.c.obj	5ff5a13c163230be
+966	1349	7724845495975763	PseudoCompiler.exe	5ed5da6c4624616
+157	2504	7688493618616125	CMakeFiles/PseudoCompiler.dir/arena.c.obj	dc7d6693dbedcab8
+5	342	7724809981611386	CMakeFiles/PseudoCompiler.dir/parser.c.obj	518ffe8f15fc6f7
+5	167	7723196091914230	CMakeFiles/PseudoCompiler.dir/memory.c.obj	b11852d40a3d26df
+4	222	7689161805380168	CMakeFiles/PseudoCompiler.dir/lexer.c.obj	a0393f9f71176c37
+212	2735	7688493619169670	CMakeFiles/PseudoCompiler.dir/token.c.obj	eaac1d15de99f70b
+8	359	7724818472848702	CMakeFiles/PseudoCompiler.dir/semantic.c.obj	89bc0f045338b91e
+333	2850	7688493620385197	CMakeFiles/PseudoCompiler.dir/common.c.obj	8c7f265184f98aa6
+72	635	7724802026173861	CMakeFiles/PseudoCompiler.dir/symbol.c.obj	eb525191c9899ce4
+3	247	7728942029653614	build.ninja	559c1cebc26adf3c
+49	332	7722303149803967	CMakeFiles/PseudoCompiler.dir/object.c.obj	1d9d45b20654c60f
+11	255	7722309213259710	CMakeFiles/PseudoCompiler.dir/stack.c.obj	b8c5bbee04df3997
+5	190	7724838206653037	CMakeFiles/PseudoCompiler.dir/bytecode.c.obj	9fc1397d3ec28f13
+8	304	7724822582116918	CMakeFiles/PseudoCompiler.dir/compiler.c.obj	9eb5ef3d7311d6e7
+14	964	7724845486473363	CMakeFiles/PseudoCompiler.dir/vm.c.obj	30785886f19d75ba
