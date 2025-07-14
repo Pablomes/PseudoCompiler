@@ -10,6 +10,7 @@ typedef struct MemoryCell {
     Obj obj;
     bool marked;
     bool free;
+    bool forceFree;
     struct MemoryCell* nextFree;
 } MemoryCell;
 
@@ -25,10 +26,12 @@ void freeProgramMemory(ProgramMemory* mem);
 
 Obj* allocString(ProgramMemory* mem, const char* chars, int length);
 Obj* allocArray(ProgramMemory* mem, int length, int width, int x0, int y0, size_t elemSize);
+Obj* allocFile(ProgramMemory* mem, const char* filename, FileAccessType accessType);
 
 bool inProgramMemory(ProgramMemory* mem, void* ptr);
 bool isValidReference(ProgramMemory* mem, void* ptr);
 void markCell(ProgramMemory* mem, void* ptr);
+void markForceFree(ProgramMemory* mem, void* ptr);
 
 size_t collectGarbage(ProgramMemory* mem);
 

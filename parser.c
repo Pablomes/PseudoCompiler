@@ -55,6 +55,7 @@ void initParser(Parser* parser, TokenArray* array) {
     parser->hadError = false;
     parser->panicMode = false;
     parser->ast.program = NULL;
+    parser->produceErrors = true;
 
     parser->current = array->start;
 }
@@ -99,6 +100,9 @@ static void freeASTNode(ASTNode* node) {
             freeASTNode(node->as.IfStmt.thenBranch);
             freeASTNode(node->as.IfStmt.elseBranch);
             break;
+        case STMT_INPUT:
+            freeASTNode(node->as.InputStmt.varAccess);
+            break;
         case STMT_OUTPUT:
             freeASTArray(&node->as.OutputStmt.expressions);
             break;
@@ -137,6 +141,12 @@ static void freeASTNode(ASTNode* node) {
             break;
         case STMT_CASE_BLOCK:
             freeASTNode(node->as.CaseBlockStmt.body);
+            break;
+        case STMT_READFILE:
+            freeASTNode(node->as.ReadfileStmt.varAccess);
+            break;
+        case STMT_WRITEFILE:
+            freeASTArray(&node->as.WritefileStmt.expressions);
             break;
         case STMT_PROGRAM:
             freeASTArray(&node->as.ProgramStmt.body);
@@ -254,11 +264,31 @@ static void printReturnType(DataType type) {
         case TYPE_ARRAY:
             printf("ARRAY");
             break;
+        case TYPE_FILE:
+            printf("FILE");
+            break;
         case TYPE_NONE:
             printf("NONE");
             break;
         default:
             printf("UNKNOWN");
+            break;
+    }
+}
+
+static void printAccessType(FileAccessType type) {
+    switch (type) {
+        case ACCESS_READ:
+            printf("READ");
+            break;
+        case ACCESS_WRITE:
+            printf("WRITE");
+            break;
+        case ACCESS_APPEND:
+            printf("APPEND");
+            break;
+        default:
+            printf("-");
             break;
     }
 }
@@ -509,6 +539,35 @@ static void printASTNode(ASTNode* node, int depth) {
             PREFIX; printf("body:\n");
             printASTNode(node->as.CaseBlockStmt.body, depth + 1);
             PREFIX; printf("\n");
+            break;
+        case STMT_OPENFILE:
+            PREFIX; printf("OPENFILE STMT.\n");
+            PREFIX; printf("file name: %.*s\n", node->as.OpenfileStmt.filename->length, node->as.OpenfileStmt.filename->start);
+            PREFIX; printf("access type: ");
+            printAccessType(node->as.OpenfileStmt.accessType);
+            printf("\n");
+            PREFIX; printf("\n");
+            break;
+        case STMT_CLOSEFILE:
+            PREFIX; printf("CLOSEFILE STMT.\n");
+            PREFIX; printf("file name: %.*s\n", node->as.ClosefileStmt.filename->length, node->as.ClosefileStmt.filename->start);
+            PREFIX; printf("\n");
+            break;
+        case STMT_READFILE:
+            PREFIX; printf("READFILE STMT.\n");
+            PREFIX; printf("file name: %.*s\n", node->as.ReadfileStmt.filename->length, node->as.ReadfileStmt.filename->start);
+            PREFIX; printf("var access:\n");
+            printASTNode(node->as.ReadfileStmt.varAccess, depth + 1);
+            PREFIX; printf("\n");
+            break;
+        case STMT_WRITEFILE:
+            PREFIX; printf("WRITEFILE STMT.\n");
+            PREFIX; printf("file name: %.*s\n", node->as.WritefileStmt.filename->length, node->as.WritefileStmt.filename->start);
+            PREFIX; printf("expressions:\n");
+            for (int i = 0; i < node->as.WritefileStmt.expressions.count; i++) {
+                printASTNode(node->as.WritefileStmt.expressions.start[i], depth + 1);
+                PREFIX; printf("\n");
+            }
             break;
         case STMT_PROGRAM:
             PREFIX; printf("PROGRAM.\n");
@@ -787,8 +846,10 @@ static ASTNode* primary(Parser* parser) {
                 LIT.resultType = TYPE_BOOLEAN;
                 break;
             default:
-                errorAtCurrent(parser, "Expected primary literal or identifier.");
-                freeASTNode(prim);
+                if (parser->produceErrors) {
+                    errorAtCurrent(parser, "Expected primary literal or identifier.");
+                    freeASTNode(prim);
+                }
                 return NULL;
         }
 
@@ -1818,6 +1879,9 @@ static ASTNode* ifStatement(Parser* parser) {
     ifStmt->col = parser->current[-1].col;
 #define IF ifStmt->as.IfStmt
 
+    IF.thenBranch = NULL;
+    IF.elseBranch = NULL;
+
     ASTNode* condition = expression(parser);
     if (condition == NULL) {
         freeASTNode(ifStmt);
@@ -1880,9 +1944,22 @@ static ASTNode* caseLine(Parser* parser) {
     line->start = parser->current->start;
     line->line = parser->current->line;
     line->col = parser->current->col;
+
+
+    ASTNode* block = ALLOC_AST;
+    block->type = STMT_BLOCK;
+    block->start = parser->current->start;
+    block->line = parser->current->line;
+    block->col = parser->current->col;
+
 #define LINE line->as.CaseLineStmt
+#define BLCK block->as.BlockStmt
 
     LINE.value = NULL;
+    LINE.result = block;
+    BLCK.body.start = NULL;
+    BLCK.body.count = 0;
+    BLCK.body.count = 0;
 
     if (!match(parser, TOK_OTHERWISE)) {
         ASTNode* expr = expression(parser);
@@ -1901,21 +1978,50 @@ static ASTNode* caseLine(Parser* parser) {
     ASTNode* res = statement(parser);
     if (res == NULL) {
         freeASTNode(line);
+        freeASTNode(block);
         return NULL;
     }
 
-    LINE.result = res;
+    addASTNode(&BLCK.body, res);
+
+    while (true) {
+        Token* temp = parser->current;
+        if (parser->current->type == TOK_OTHERWISE || parser->current->type == TOK_EOF || parser->current->type == TOK_ENDCASE) {
+            break;
+        }
+        parser->produceErrors = false;
+        ASTNode* testExpr = expression(parser);
+        parser->produceErrors = true;
+        if (testExpr != NULL && parser->current->type == TOK_COLON) {
+            parser->current = temp;
+            freeASTNode(testExpr);
+            break;
+        }
+
+        parser->current = temp;
+        ASTNode* subRes = statement(parser);
+        if (subRes == NULL) {
+            freeASTNode(line);
+            freeASTNode(block);
+            return NULL;
+        }
+
+        addASTNode(&BLCK.body, subRes);
+    }
 
     line->length = (parser->current[-1].start + parser->current[-1].length) - line->start;
+    block->length = (parser->current[-1].start + parser->current[-1].length) - block->start;
 
     if (!valid) {
         freeASTNode(line);
+        freeASTNode(block);
         return NULL;
     }
 
     return line;
 
 #undef LINE
+#undef BLCK
 }
 
 static ASTNode* caseBlock(Parser* parser) {
@@ -2282,7 +2388,13 @@ static ASTNode* inputStatement(Parser* parser) {
 
     inp->as.InputStmt.name = parser->current - 1;
 
-    inp->as.InputStmt.varAccess = symbolExpression(parser);
+    ASTNode* varAccess = symbolExpression(parser);
+    if (varAccess == NULL) {
+        freeASTNode(inp);
+        return NULL;
+    }
+
+    inp->as.InputStmt.varAccess = varAccess;
 
     valid &= consume(parser, TOK_NEW_LINE, "Expect new line after INPUT statement.");
 
@@ -2332,6 +2444,184 @@ static ASTNode* outputStatement(Parser* parser) {
     return out;
 
 #undef OUT
+}
+
+static ASTNode* openfileStatement(Parser* parser) {
+    bool valid = true;
+    ASTNode* openfile = ALLOC_AST;
+    openfile->type = STMT_OPENFILE;
+    openfile->start = parser->current->start;
+    openfile->line = parser->current->line;
+    openfile->col = parser->current->col;
+
+#define OFILE openfile->as.OpenfileStmt
+
+    OFILE.filename = NULL;
+    OFILE.accessType = ACCESS_NONE;
+
+    if (!consume(parser, TOK_STRING_LIT, "Expected string literal referring to file name.")) {
+        freeASTNode(openfile);
+        return NULL;
+    }
+
+    OFILE.filename = parser->current - 1;
+
+    valid &= consume(parser, TOK_FOR, "Expected FOR keyword after file name.");
+
+    switch (parser->current->type) {
+        case TOK_READ:
+            OFILE.accessType = ACCESS_READ;
+            break;
+        case TOK_WRITE:
+            OFILE.accessType = ACCESS_WRITE;
+            break;
+        case TOK_APPEND:
+            OFILE.accessType = ACCESS_APPEND;
+            break;
+        default:
+            errorAtCurrent(parser, "Not a valid file access specifier.");
+            freeASTNode(openfile);
+            return NULL;
+    }
+
+    advance(parser);
+
+    valid &= consume(parser, TOK_NEW_LINE, "Expect new line after OPENFILE statement.");
+
+    if (!valid) {
+        freeASTNode(openfile);
+        return NULL;
+    }
+
+    openfile->length = (parser->current[-1].start + parser->current[-1].length) - openfile->start;
+
+    return openfile;
+
+#undef OFILE
+}
+
+static ASTNode* closefileStatement(Parser* parser) {
+    ASTNode* closefile = ALLOC_AST;
+    closefile->type = STMT_CLOSEFILE;
+    closefile->start = parser->current->start;
+    closefile->line = parser->current->line;
+    closefile->col = parser->current->col;
+
+#define CFILE closefile->as.ClosefileStmt
+
+    CFILE.filename = NULL;
+
+    if (!consume(parser, TOK_STRING_LIT, "Expected string literal referring to file name.")) {
+        freeASTNode(closefile);
+        return NULL;
+    }
+
+    CFILE.filename = parser->current - 1;
+
+    if (!consume(parser, TOK_NEW_LINE, "Expected new line after CLOSEFILE statement.")) {
+        freeASTNode(closefile);
+        return NULL;
+    }
+
+    closefile->length = (parser->current[-1].start + parser->current[-1].length) - closefile->start;
+
+    return closefile;
+
+#undef CFILE
+}
+
+static ASTNode* readfileStatement(Parser* parser) {
+    bool valid = true;
+    ASTNode* readfile = ALLOC_AST;
+    readfile->type = STMT_READFILE;
+    readfile->start = parser->current->start;
+    readfile->line = parser->current->line;
+    readfile->col = parser->current->col;
+
+#define RFILE readfile->as.ReadfileStmt
+
+    RFILE.filename = NULL;
+    RFILE.varAccess = NULL;
+
+    if (!consume(parser, TOK_STRING_LIT, "Expected string literal referring to file name.")) {
+        freeASTNode(readfile);
+        return NULL;
+    }
+
+    RFILE.filename = parser->current - 1;
+
+    valid &= consume(parser, TOK_COMMA, "Expected comma separator between file name and target variable access.");
+
+    valid &= consume(parser, TOK_IDENTIFIER, "Expect identifier name after 'INPUT' keyword.");
+
+    ASTNode* varAccess = symbolExpression(parser);
+    if (varAccess == NULL) {
+        freeASTNode(readfile);
+        return NULL;
+    }
+
+    RFILE.varAccess = varAccess;
+
+    valid &= consume(parser, TOK_NEW_LINE, "Expected new line after READFILE statement.");
+
+    if (!valid) {
+        freeASTNode(readfile);
+        return NULL;
+    }
+
+    readfile->length = (parser->current[-1].start + parser->current[-1].length) - readfile->start;
+
+    return readfile;
+
+#undef RFILE
+}
+
+static ASTNode* writefileStatement(Parser* parser) {
+    bool valid = true;
+    ASTNode* writefile = ALLOC_AST;
+    writefile->type = STMT_WRITEFILE;
+    writefile->start = parser->current->start;
+    writefile->line = parser->current->line;
+    writefile->col = parser->current->col;
+
+#define WFILE writefile->as.WritefileStmt
+
+    WFILE.filename = NULL;
+    WFILE.expressions.start = NULL;
+    WFILE.expressions.count = 0;
+    WFILE.expressions.size = 0;
+
+    if (!consume(parser, TOK_STRING_LIT, "Expected string literal referring to file name.")) {
+        freeASTNode(writefile);
+        return NULL;
+    }
+
+    WFILE.filename = parser->current - 1;
+
+    valid &= consume(parser, TOK_COMMA, "Expected comma separator between file name and expression list.");
+
+    do {
+        ASTNode* expr = expression(parser);
+        if (expr == NULL) {
+            freeASTNode(writefile);
+            return NULL;
+        }
+
+        addASTNode(&WFILE.expressions, expr);
+    } while (match(parser, TOK_COMMA));
+
+    valid &= consume(parser, TOK_NEW_LINE, "Expected new line after WRITEFILE statement.");
+
+    if (!valid) {
+        freeASTNode(writefile);
+        return NULL;
+    }
+
+    writefile->length = (parser->current[-1].start + parser->current[-1].length) - writefile->start;
+
+    return writefile;
+
+#undef WFILE
 }
 
 static ASTNode* expressionStatement(Parser* parser) {
@@ -2386,6 +2676,14 @@ static ASTNode* statement(Parser* parser) {
         stmt = inputStatement(parser);
     } else if (match(parser, TOK_OUTPUT)) {
         stmt = outputStatement(parser);
+    } else if (match(parser, TOK_OPENFILE)) {
+        stmt = openfileStatement(parser);
+    } else if (match(parser, TOK_CLOSEFILE)) {
+        stmt = closefileStatement(parser);
+    } else if (match(parser, TOK_READFILE)) {
+        stmt = readfileStatement(parser);
+    } else if (match(parser, TOK_WRITEFILE)) {
+        stmt = writefileStatement(parser);
     } else {
         stmt = expressionStatement(parser);
     }

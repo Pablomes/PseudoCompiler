@@ -42,6 +42,7 @@ void initTable(SymbolTable* table) {
     table->enclosing = NULL;
     table->scopeType = SCOPE_GLOBAL;
     table->nextPos = 0;
+    table->filesOpened = 0;
 }
 
 void freeTable(SymbolTable* table) {
@@ -49,6 +50,7 @@ void freeTable(SymbolTable* table) {
 
     for (int i = 0; i < table->capacity; i++) {
         Entry* entry = &table->entries[i];
+        if (entry->key == NULL) continue;
         free(entry->key);
         free(entry->symbol);
     }
@@ -73,6 +75,10 @@ static void adjustCapacity(SymbolTable* table, int capacity) {
 }
 
 bool setTable(SymbolTable* table, const char* key, ASTNode* node, SymbolType type, int pos, bool isRelative, bool byref) {
+    setTableFile(table, key, node, type, pos, isRelative, byref, ACCESS_NONE);
+}
+
+bool setTableFile(SymbolTable* table, const char* key, ASTNode* node, SymbolType type, int pos, bool isRelative, bool byref, FileAccessType access) {
     if ((table->count + 1) > table->capacity * TABLE_MAX_LOAD) {
         int newCapacity = table->capacity < 8 ? 8 : table->capacity * 2;
         adjustCapacity(table, newCapacity);
@@ -94,6 +100,7 @@ bool setTable(SymbolTable* table, const char* key, ASTNode* node, SymbolType typ
     entry->symbol->pos = pos;
     entry->symbol->isRelative = isRelative;
     entry->symbol->byref = byref;
+    entry->symbol->access = access;
 
     return isNewKey;
 }
@@ -169,4 +176,20 @@ void clearTable(SymbolTable* table) {
     }
     table->count = 0;
     table->nextPos = 0;
+}
+
+void createBuiltin(Builtin* func, int numParams, DataType returnType, int idx) {
+    func->builtinIdx = idx;
+    func->returnType = returnType;
+    func->numParams = numParams;
+    func->parameterTypes = (DataType*) malloc(sizeof(DataType) * numParams);
+
+    if (func->parameterTypes == NULL) {
+        printf("Error creating builtin function declarations.\n");
+        return;
+    }
+}
+
+void addParamDatatype(Builtin* func, DataType type, int idx) {
+    func->parameterTypes[idx] = type;
 }

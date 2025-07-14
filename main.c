@@ -81,6 +81,7 @@ static void runFile(const char* path) {
     if (res) {
         freeLexer(&lexer);
         freeParser(&parser);
+        return;
     }
 
     Analyser analyser;
@@ -110,6 +111,7 @@ static void runFile(const char* path) {
     printf("COMPILED\n");
 
     printCompileResult(&compiler);
+
 
     VM vm;
     initVM(&vm, 1024, 1024, 256, compiler.bStream);

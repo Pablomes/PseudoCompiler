@@ -1,6 +1,8 @@
 
 #include "vm.h"
 
+
+
 static void runtimeError(VM* vm, const char* message) {
     vm->hadRuntimeError = true;
 
@@ -44,6 +46,14 @@ static Obj* concatStrings(VM* vm, Obj* fst, Obj* snd) {
     char* buff = malloc(length * sizeof(char));
     if (buff == NULL) return NULL;
 
+    for (int i = 0; i < fst->as.StringObj.length; i++) {
+        buff[i] = fst->as.StringObj.start[i];
+    }
+
+    for (int i = 0; i < snd->as.StringObj.length; i++) {
+        buff[fst->as.StringObj.length + i] = snd->as.StringObj.start[i];
+    }
+
     Obj* res = allocString(&vm->mem, buff, length);
     if (res == NULL) {
         free(buff);
@@ -72,6 +82,7 @@ static int cmpStrings(Obj* str1, Obj* str2) {
 }
 
 static void clearInputBuffer() {
+    clearerr(stdin);
     int c;
     while ((c = getchar()) != '\n' && c != EOF) { }
 }
@@ -121,6 +132,220 @@ static byte popByte(VM* vm) {
 #define POP_INT(n)      { byte4 temp; POP_4BYTE(temp); n = *(int*)(&temp); }
 #define POP_REAL(r)     { byte8 temp; POP_8BYTE(temp); r = *(double*)(&temp); }
 #define POP_REF(r)      { byte8 temp; POP_8BYTE(temp); r = *(void**)(&temp); }
+
+static void substring(VM* vm) {
+    int length;
+    POP_INT(length);
+    int initPos;
+    POP_INT(initPos);
+    void* ref;
+    POP_REF(ref);
+
+    if (!isValidReference(&vm->mem, ref)) {
+        runtimeError(vm, "Segmentation fault.");
+        return;
+    }
+
+    Obj* str = (Obj*)ref;
+
+    if (initPos + length - 1 > str->as.StringObj.length) {
+        runtimeError(vm, "Substring overextends string.");
+        return;
+    }
+    if (initPos <= 0 || initPos > str->as.StringObj.length) {
+        runtimeError(vm, "Initial pos must be between 1 and length of string.");
+        return;
+    }
+    char* sub = extractNullTerminatedString(str->as.StringObj.start + initPos - 1, length);
+
+    Obj* strPtr = allocString(&vm->mem, sub, length);
+
+    if (strPtr == NULL) {
+        runtimeError(vm, "String allocation failed in heap.");
+        printf("IN USE %zu of %zu and next free is %p\n",  vm->mem.inUse, vm->mem.memSize, vm->mem.free);
+        free(sub);
+        return;
+    }
+
+    PUSH_REF(strPtr);
+}
+
+static void length(VM* vm) {
+    void* ref;
+    POP_REF(ref);
+
+    if (!isValidReference(&vm->mem, ref)) {
+        runtimeError(vm, "Segmentation fault.");
+        return;
+    }
+
+    Obj* str = (Obj*)ref;
+
+    int len = str->as.StringObj.length;
+
+    PUSH_INT(len);
+}
+
+static void lcase(VM* vm) {
+    void* ref;
+    POP_REF(ref);
+
+    if (!isValidReference(&vm->mem, ref)) {
+        runtimeError(vm, "Segmentation fault.");
+        return;
+    }
+
+    Obj* str = (Obj*)ref;
+
+    char* lchars = (char*) malloc(sizeof(char) * str->as.StringObj.length);
+
+    if (lchars == NULL) {
+        runtimeError(vm, "Memory allocation fail.");
+        return;
+    }
+
+    for (int i = 0; i < str->as.StringObj.length; i++) {
+        char c = str->as.StringObj.start[i];
+
+        if (c >= 'A' && c <= 'Z') {
+            c += 32;
+        }
+
+        lchars[i] = c;
+    }
+
+    Obj* newStr = allocString(&vm->mem, lchars, str->as.StringObj.length);
+
+    if (newStr == NULL) {
+        runtimeError(vm, "Memory allocation fail.");
+        return;
+    }
+
+    PUSH_REF(newStr);
+}
+
+static void ucase(VM* vm) {
+    void* ref;
+    POP_REF(ref);
+
+    if (!isValidReference(&vm->mem, ref)) {
+        runtimeError(vm, "Segmentation fault.");
+        return;
+    }
+
+    Obj* str = (Obj*)ref;
+
+    char* uchars = (char*) malloc(sizeof(char) * str->as.StringObj.length);
+
+    if (uchars == NULL) {
+        runtimeError(vm, "Memory allocation fail.");
+        return;
+    }
+
+    for (int i = 0; i < str->as.StringObj.length; i++) {
+        char c = str->as.StringObj.start[i];
+
+        if (c >= 'a' && c <= 'z') {
+            c -= 32;
+        }
+
+        uchars[i] = c;
+    }
+
+    Obj* newStr = allocString(&vm->mem, uchars, str->as.StringObj.length);
+
+    if (newStr == NULL) {
+        runtimeError(vm, "Memory allocation fail.");
+        return;
+    }
+
+    PUSH_REF(newStr);
+}
+
+static void randomBetween(VM* vm) {
+    int min, max;
+    POP_INT(max);
+    POP_INT(min);
+
+    srand((unsigned int)clock());
+
+    int randomNum = rand() % (max - min + 1) + min;
+
+    PUSH_INT(randomNum);
+}
+
+static void rnd(VM* vm) {
+    srand((unsigned int)clock());
+
+    double randomReal = rand() / ((double) RAND_MAX);
+
+    PUSH_REAL(randomReal);
+}
+
+static void integer(VM* vm) {
+    double real;
+    POP_REAL(real);
+
+    int num = (int)real;
+
+    PUSH_INT(num);
+}
+
+static void eof(VM* vm) {
+    void* ref;
+    POP_REF(ref);
+
+    if (!isValidReference(&vm->mem, ref)) {
+        runtimeError(vm, "Segmentation fault.");
+        return;
+    }
+
+    Obj* file = (Obj*) ref;
+
+    FILE* filePtr = file->as.FileObj.filePtr;
+
+    bool isEOF = feof(filePtr) == 0 ? false : true;
+
+    PUSH_BOOL(isEOF);
+}
+
+static void runBuiltinFunc(VM* vm, int idx) {
+    switch (idx) {
+        case 0: {
+            substring(vm);
+            break;
+        }
+        case 1: {
+            length(vm);
+            break;
+        }
+        case 2: {
+            lcase(vm);
+            break;
+        }
+        case 3: {
+            ucase(vm);
+            break;
+        }
+        case 4: {
+            randomBetween(vm);
+            break;
+        }
+        case 5: {
+            rnd(vm);
+            break;
+        }
+        case 6: {
+            integer(vm);
+            break;
+        }
+        case 7: {
+            eof(vm);
+            break;
+        }
+        default: break;
+    }
+}
 
 static void runInstruction(VM* vm) {
     Instruction op = vm->program->stream[vm->PC];
@@ -342,6 +567,13 @@ static void runInstruction(VM* vm) {
             int returnPC = popCallFrame(&vm->callStack);
             jmpTo(vm, returnPC);
             vm->stack.top = base - 1;
+            break;
+        }
+        case CALL_BUILTIN: {
+            int builtinIdx;
+            READ_INT(builtinIdx, vm->PC + 1);
+            vm->PC += 4;
+            runBuiltinFunc(vm, builtinIdx);
             break;
         }
         case RSTORE_INT: {
@@ -779,8 +1011,8 @@ static void runInstruction(VM* vm) {
                 break;
             }
 
-            Obj* str1 = (Obj*)ref1;
-            Obj* str2 = (Obj*)ref2;
+            Obj* str2 = (Obj*)ref1;
+            Obj* str1 = (Obj*)ref2;
 
             Obj* res = concatStrings(vm, str1, str2);
             if (res == NULL) {
@@ -788,9 +1020,9 @@ static void runInstruction(VM* vm) {
                 break;
             }
 
-            void* resRef = (void*)res;
+            //void* resRef = (void*)res;
 
-            PUSH_REF(resRef);
+            PUSH_REF(res);
             break;
         }
         case EQ_INT: {
@@ -1135,6 +1367,7 @@ static void runInstruction(VM* vm) {
             //clearInputBuffer();
             int num;
             int res = scanf("%d", &num);
+            clearInputBuffer();
 
             if (res <= 0) {
                 runtimeError(vm, "I/O error.");
@@ -1148,6 +1381,7 @@ static void runInstruction(VM* vm) {
             //clearInputBuffer();
             double num;
             int res = scanf("%f", &num);
+            clearInputBuffer();
 
             if (res <= 0) {
                 runtimeError(vm, "I/O error.");
@@ -1161,6 +1395,7 @@ static void runInstruction(VM* vm) {
             //clearInputBuffer();
             char c;
             int res = scanf("%c", &c);
+            clearInputBuffer();
 
             if (res <= 0) {
                 runtimeError(vm, "I/O error.");
@@ -1175,6 +1410,7 @@ static void runInstruction(VM* vm) {
             char boolean[10];
 
             int res = scanf("%s", boolean);
+            clearInputBuffer();
 
             if (res <= 0) {
                 runtimeError(vm, "I/O error.");
@@ -1304,6 +1540,260 @@ static void runInstruction(VM* vm) {
         }
         case OUTPUT_NL: {
             printf("\n");
+            break;
+        }
+        case READ_LINE: {
+            void* ref;
+            POP_REF(ref);
+
+            if (!isValidReference(&vm->mem, ref)) {
+                runtimeError(vm, "Segmentation fault.");
+                break;
+            }
+
+            Obj* file = (Obj*)ref;
+
+            int currSize = 128;
+            char* buff = malloc(sizeof(char) * currSize);
+            if (buff == NULL) {
+                runtimeError(vm, "I/O error.");
+                break;
+            }
+
+            int length = 0;
+
+            while (true) {
+                int c = fgetc(file->as.FileObj.filePtr);
+                if (c == EOF) {
+                    if (ferror(file->as.FileObj.filePtr)) {
+                        runtimeError(vm, "Error reading file.");
+                        free(buff);
+                        length = -1;
+                        break;
+                    }
+                }
+
+                if (c == '\n' || c == EOF) break;
+
+                if (length >= currSize) {
+                    currSize *= 2;
+                    char* orig = buff;
+                    buff = realloc(buff, sizeof(char) * currSize);
+
+                    if (buff == NULL) {
+                        runtimeError(vm , "I/O error.");
+                        length = -1;
+                        free(orig);
+                        break;
+                    }
+                }
+
+                buff[length] = (char)c;
+                length++;
+            }
+
+            if (length < 0) {
+                break;
+            }
+
+            char* strBuff = malloc(sizeof(char) * length);
+
+            if (strBuff == NULL) {
+                runtimeError(vm, "I/O error.");
+                free(buff);
+                break;
+            }
+
+            for (int i = 0; i < length; i++) {
+                strBuff[i] = buff[i];
+            }
+
+            free(buff);
+
+            Obj* strPtr = allocString(&vm->mem, strBuff, length);
+
+            if (strPtr == NULL) {
+                free(strBuff);
+                runtimeError(vm, "I/O error.");
+                break;
+            }
+
+            PUSH_REF(strPtr);
+            break;
+        }
+        case WRITE_INT: {
+            void* ref;
+            POP_REF(ref);
+
+            if (!isValidReference(&vm->mem, ref)) {
+                runtimeError(vm, "Segmentation fault.");
+                break;
+            }
+
+            Obj* file = (Obj*)ref;
+
+            int a;
+            POP_INT(a);
+
+            fprintf(file->as.FileObj.filePtr, "%d", a);
+
+            break;
+        }
+        case WRITE_REAL: {
+            void* ref;
+            POP_REF(ref);
+
+            if (!isValidReference(&vm->mem, ref)) {
+                runtimeError(vm, "Segmentation fault.");
+                break;
+            }
+
+            Obj* file = (Obj*)ref;
+
+            double a;
+            POP_REAL(a);
+
+            fprintf(file->as.FileObj.filePtr, "%f", a);
+
+            break;
+        }
+        case WRITE_CHAR: {
+            void* ref;
+            POP_REF(ref);
+
+            if (!isValidReference(&vm->mem, ref)) {
+                runtimeError(vm, "Segmentation fault.");
+                break;
+            }
+
+            Obj* file = (Obj*)ref;
+
+            char a;
+            POP_CHAR(a);
+
+            fprintf(file->as.FileObj.filePtr, "%c", a);
+
+            break;
+        }
+        case WRITE_BOOL: {
+            void* ref;
+            POP_REF(ref);
+
+            if (!isValidReference(&vm->mem, ref)) {
+                runtimeError(vm, "Segmentation fault.");
+                break;
+            }
+
+            Obj* file = (Obj*)ref;
+
+            bool a;
+            POP_BOOL(a);
+
+            fprintf(file->as.FileObj.filePtr, a ? "TRUE" : "FALSE");
+
+            break;
+        }
+        case WRITE_REF: {
+            void* ref;
+            POP_REF(ref);
+
+            if (!isValidReference(&vm->mem, ref)) {
+                runtimeError(vm, "Segmentation fault.");
+                break;
+            }
+
+            Obj* file = (Obj*)ref;
+
+            void* a;
+            POP_REF(a);
+
+            fprintf(file->as.FileObj.filePtr, "[%p]", a);
+
+            break;
+        }
+        case WRITE_STRING: {
+            void* ref;
+            POP_REF(ref);
+
+            if (!isValidReference(&vm->mem, ref)) {
+                runtimeError(vm, "Segmentation fault.");
+                break;
+            }
+
+            Obj* file = (Obj*)ref;
+
+            void* a;
+            POP_REF(a);
+
+            if (!isValidReference(&vm->mem, a)) {
+                runtimeError(vm, "Segmentation fault.");
+                break;
+            }
+
+            Obj* str = (Obj*)a;
+
+            for (int i = 0; i < str->as.StringObj.length; i++) {
+                fprintf(file->as.FileObj.filePtr, "%c", str->as.StringObj.start[i]);
+            }
+
+            break;
+        }
+        case WRITE_NL: {
+            void* ref;
+            POP_REF(ref);
+
+            if (!isValidReference(&vm->mem, ref)) {
+                runtimeError(vm, "Segmentation fault.");
+                break;
+            }
+
+            Obj* file = (Obj*)ref;
+
+            fprintf(file->as.FileObj.filePtr, "\n");
+            break;
+        }
+        case OPENFILE: {
+            int accessType;
+            POP_INT(accessType);
+
+            void* a;
+            POP_REF(a);
+
+            if (!isValidReference(&vm->mem, a)) {
+                runtimeError(vm, "Segmentation fault.");
+                break;
+            }
+
+            Obj* str = (Obj*)a;
+
+            char* name = extractNullTerminatedString(str->as.StringObj.start, str->as.StringObj.length);
+
+            Obj* file = allocFile(&vm->mem, name, accessType);
+
+            free(name);
+
+            if (file == NULL) {
+                runtimeError(vm, "Error opening file.");
+                break;
+            }
+
+            PUSH_REF(file);
+            break;
+        }
+        case CLOSEFILE: {
+            void* ref;
+            POP_REF(ref);
+
+            if (!isValidReference(&vm->mem, ref)) {
+                runtimeError(vm, "Segmentation fault.");
+                break;
+            }
+
+            markForceFree(&vm->mem, ref);
+
+            Obj* file = (Obj*)ref;
+
+            fclose(file->as.FileObj.filePtr);
             break;
         }
         /*case RINPUT_INT: {

@@ -24,6 +24,13 @@ static bool addSymbol(Compiler* compiler, const char* key, ASTNode* node, Symbol
     return setTable(compiler->symbolTable, key, node, type, pos, isRelative, byref);
 }
 
+static bool addFile(Compiler* compiler, const char* key, ASTNode* node, SymbolType type, bool isRelative, bool byref, FileAccessType access) {
+    int size = 8;
+    int pos = compiler->symbolTable->nextPos;
+    compiler->symbolTable->nextPos += size;
+    return setTableFile(compiler->symbolTable, key, node, type, pos, isRelative, byref, access);
+}
+
 static bool addSubroutineSymbol(Compiler* compiler, const char* key, ASTNode* node, int pos) {
     SymbolType type = node->as.SubroutineStmt.subroutineType == TYPE_FUNCTION ? SYMBOL_FUNC : SYMBOL_PROC;
 
@@ -145,6 +152,20 @@ static void compileNode(Compiler* compiler, ASTNode* node) {
                 break;
             }
             free(name);
+
+            if (callable.type == SYMBOL_BUILTIN_FUNC) {
+                for (int i = 0; i < node->as.CallExpr.arguments.count; i++) {
+                    compileNode(compiler, node->as.CallExpr.arguments.start[i]);
+                }
+
+                int idx = ((Builtin*)callable.node)->builtinIdx;
+
+                addOp(compiler, CALL_BUILTIN);
+                ADD_INT(idx);
+
+                break;
+            }
+
             addOp(compiler, CALL_SUB);
             for (int i = 0; i < node->as.CallExpr.arguments.count; i++) {
                 if (callable.node->as.SubroutineStmt.parameters.start[i]->as.Parameter.byref) {
@@ -306,6 +327,14 @@ static void compileNode(Compiler* compiler, ASTNode* node) {
             }
 
             switch (var.type) {
+                case SYMBOL_FILE: {
+                    if (var.isRelative) {
+                        addOp(compiler, RFETCH_REF);
+                    } else {
+                        addOp(compiler, FETCH_REF);
+                    }
+                    break;
+                }
                 case SYMBOL_VAR:
                     if (var.byref) {
                         if (var.isRelative) {
@@ -1437,11 +1466,174 @@ static void compileNode(Compiler* compiler, ASTNode* node) {
 
                 compiler->lastCaseJumpPos = getNextPos(compiler->bStream);
                 ADD_INT(zero);
+
+                int pos = getNextPos(compiler->bStream);
+                insertAtPos(compiler->bStream, (pos >> 24) & 0xff, falseJumpPos);
+                insertAtPos(compiler->bStream, (pos >> 16) & 0xff, falseJumpPos + 1);
+                insertAtPos(compiler->bStream, (pos >> 8) & 0xff, falseJumpPos + 2);
+                insertAtPos(compiler->bStream, (pos) & 0xff, falseJumpPos + 3);
             }
             break;
         }
         case STMT_CASE_BLOCK: {
             compileNode(compiler, node->as.CaseBlockStmt.body);
+            break;
+        }
+        case STMT_OPENFILE: {
+            char* filename = extractNullTerminatedString(node->as.OpenfileStmt.filename->start, node->as.OpenfileStmt.filename->length);
+
+            addFile(compiler, filename, node, SYMBOL_FILE, compiler->depth > 0, false, node->as.OpenfileStmt.accessType);
+
+            free(filename);
+
+            addOp(compiler, LOAD_STRING);
+            ADD_INT(node->as.OpenfileStmt.filename->length - 2);
+            for (int i = 1; i < node->as.OpenfileStmt.filename->length - 1; i++) {
+                ADD_CHAR(node->as.OpenfileStmt.filename->start[i]);
+            }
+
+            addOp(compiler, LOAD_INT);
+            ADD_INT(node->as.OpenfileStmt.accessType);
+
+            addOp(compiler, OPENFILE);
+
+            break;
+        }
+        case STMT_CLOSEFILE: {
+            char* filename = extractNullTerminatedString(node->as.ClosefileStmt.filename->start, node->as.ClosefileStmt.filename->length);
+
+            Symbol file;
+            int res = findSymbol(compiler, filename, &file);
+            if (!res) {
+                printf("Something went wrong. This shouldn't be able to happen.\n");
+                break;
+            }
+            free(filename);
+
+            addOp(compiler, LOAD_INT);
+            ADD_INT(file.pos);
+
+            if (file.isRelative) {
+                addOp(compiler, RFETCH_REF);
+            } else {
+                addOp(compiler, FETCH_REF);
+            }
+
+            deleteTable(compiler->symbolTable, filename);
+
+            addOp(compiler, CLOSEFILE);
+
+            break;
+        }
+        case STMT_READFILE: {
+            char* filename = extractNullTerminatedString(node->as.ReadfileStmt.filename->start, node->as.ReadfileStmt.filename->length);
+
+            Symbol file;
+            int res = findSymbol(compiler, filename, &file);
+            if (!res) {
+                printf("Something went wrong. This shouldn't be able to happen.\n");
+                break;
+            }
+            free(filename);
+
+            addOp(compiler, LOAD_INT);
+            ADD_INT(file.pos);
+
+            if (file.isRelative) {
+                addOp(compiler, RFETCH_REF);
+            } else {
+                addOp(compiler, FETCH_REF);
+            }
+
+            addOp(compiler, READ_LINE);
+            char* name;
+
+            if (node->as.ReadfileStmt.varAccess->type == EXPR_VARIABLE) {
+                name = extractNullTerminatedString(node->as.ReadfileStmt.varAccess->as.VariableExpr.name->start, node->as.ReadfileStmt.varAccess->as.VariableExpr.name->length);
+            } else if (node->as.InputStmt.varAccess->type == EXPR_ARRAY_ACCESS) {
+                name = extractNullTerminatedString(node->as.ReadfileStmt.varAccess->as.ArrayAccessExpr.name->start, node->as.ReadfileStmt.varAccess->as.ArrayAccessExpr.name->length);
+            } else {
+                printf("This shouldn't be able to happen.\n");
+                break;
+            }
+
+            Symbol var;
+            res = findSymbol(compiler, name, &var);
+            if (!res) {
+                printf("This shouldn't be able to happen.\n");
+                break;
+            }
+
+            addOp(compiler, LOAD_INT);
+            ADD_INT(var.pos);
+
+            if (var.isRelative) {
+                addOp(compiler, RSTORE_REF);
+            } else {
+                addOp(compiler, STORE_REF);
+            }
+
+            free(name);
+
+            break;
+        }
+        case STMT_WRITEFILE: {
+            char* filename = extractNullTerminatedString(node->as.WritefileStmt.filename->start, node->as.WritefileStmt.filename->length);
+
+            Symbol file;
+            int res = findSymbol(compiler, filename, &file);
+            if (!res) {
+                printf("Something went wrong. This shouldn't be able to happen.\n");
+                break;
+            }
+            free(filename);
+
+
+            for (int i = 0; i < node->as.WritefileStmt.expressions.count; i++) {
+                compileNode(compiler, node->as.WritefileStmt.expressions.start[i]);
+                addOp(compiler, LOAD_INT);
+                ADD_INT(file.pos);
+
+                if (file.isRelative) {
+                    addOp(compiler, RFETCH_REF);
+                } else {
+                    addOp(compiler, FETCH_REF);
+                }
+
+                switch (node->as.WritefileStmt.expressions.start[i]->as.Expr.resultType) {
+                    case TYPE_INTEGER:
+                        addOp(compiler, WRITE_INT);
+                        break;
+                    case TYPE_REAL:
+                        addOp(compiler, WRITE_REAL);
+                        break;
+                    case TYPE_CHAR:
+                        addOp(compiler, WRITE_CHAR);
+                        break;
+                    case TYPE_BOOLEAN:
+                        addOp(compiler, WRITE_BOOL);
+                        break;
+                    case TYPE_ARRAY:
+                        addOp(compiler, WRITE_REF);
+                        break;
+                    case TYPE_STRING:
+                        addOp(compiler, WRITE_STRING);
+                        break;
+                    default: break;
+                }
+            }
+
+            addOp(compiler, LOAD_INT);
+            ADD_INT(file.pos);
+
+            if (file.isRelative) {
+                addOp(compiler, RFETCH_REF);
+            } else {
+                addOp(compiler, FETCH_REF);
+            }
+
+            addOp(compiler, WRITE_NL);
+
             break;
         }
         case STMT_PROGRAM: {
@@ -1504,6 +1696,50 @@ void freeCompiler(Compiler* compiler) {
 
 bool compile(Compiler* compiler, AST* ast) {
     ASTNode* program = ast->program;
+
+    //
+    Builtin substring;
+    createBuiltin(&substring, 3, TYPE_STRING, 0);
+    addParamDatatype(&substring, TYPE_STRING, 0);
+    addParamDatatype(&substring, TYPE_INTEGER, 1);
+    addParamDatatype(&substring, TYPE_INTEGER, 2);
+    addSymbol(compiler, "SUBSTRING", (ASTNode*)&substring, SYMBOL_BUILTIN_FUNC, false, false, 0);
+
+    Builtin length;
+    createBuiltin(&length, 1, TYPE_INTEGER, 1);
+    addParamDatatype(&length, TYPE_STRING, 0);
+    addSymbol(compiler, "LENGTH", (ASTNode*)&length, SYMBOL_BUILTIN_FUNC, false, false, 0);
+
+    Builtin lcase;
+    createBuiltin(&lcase, 1, TYPE_STRING, 2);
+    addParamDatatype(&lcase, TYPE_STRING, 0);
+    addSymbol(compiler, "LCASE", (ASTNode*)&lcase, SYMBOL_BUILTIN_FUNC, false, false, 0);
+
+    Builtin ucase;
+    createBuiltin(&ucase, 1, TYPE_STRING, 3);
+    addParamDatatype(&ucase, TYPE_STRING, 0);
+    addSymbol(compiler, "UCASE", (ASTNode*)&lcase, SYMBOL_BUILTIN_FUNC, false, false, 0);
+
+    Builtin randomBetween;
+    createBuiltin(&randomBetween, 2, TYPE_INTEGER, 4);
+    addParamDatatype(&randomBetween, TYPE_INTEGER, 0);
+    addParamDatatype(&randomBetween, TYPE_INTEGER, 1);
+    addSymbol(compiler, "RANDOMBETWEEN", (ASTNode*)&randomBetween, SYMBOL_BUILTIN_FUNC, false, false, 0);
+
+    Builtin rnd;
+    createBuiltin(&rnd, 0, TYPE_REAL, 5);
+    addSymbol(compiler, "RND", (ASTNode*)&rnd, SYMBOL_BUILTIN_FUNC, false, false, 0);
+
+    Builtin integer;
+    createBuiltin(&integer, 1, TYPE_INTEGER, 6);
+    addParamDatatype(&integer, TYPE_REAL, 0);
+    addSymbol(compiler, "INT", (ASTNode*)&integer, SYMBOL_BUILTIN_FUNC, false, false, 0);
+
+    Builtin eof;
+    createBuiltin(&eof, 1, TYPE_BOOLEAN, 7);
+    addParamDatatype(&eof, TYPE_STRING, 0);
+    addSymbol(compiler, "EOF", (ASTNode*)&eof, SYMBOL_BUILTIN_FUNC, false, false, 0);
+    //
 
     initBytecodeStream(compiler->bStream);
 

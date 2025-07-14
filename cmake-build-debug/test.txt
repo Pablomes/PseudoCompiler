@@ -1,18 +1,21 @@
-PROCEDURE proc(BYREF x:INTEGER, y:INTEGER)
-	x <- x + 1
-	y <- y + 1
+FUNCTION IsPrime(n:INTEGER) RETURNS BOOLEAN
+IF n <= 1 THEN
+RETURN FALSE
+ENDIF
+FOR i <- 2 TO INT(n^0.5)
+IF n MOD i = 0 THEN
+RETURN FALSE
+ENDIF
+NEXT i
+RETURN TRUE
+ENDFUNCTION
 
-	OUTPUT x
-	OUTPUT y
-ENDPROCEDURE
-
-DECLARE x : INTEGER
-DECLARE y:INTEGER
-
-x <- 10
-y <- 20
-
-CALL proc(x, y)
-
-OUTPUT x
-OUTPUT y
+DECLARE Limit:INTEGER
+OUTPUT "Enter the upper limit for prime numbers:"
+INPUT Limit
+OUTPUT "Prime numbers up to ", Limit, ":"
+FOR num <- 2 TO Limit
+IF IsPrime(num) THEN
+OUTPUT num
+ENDIF
+NEXT num

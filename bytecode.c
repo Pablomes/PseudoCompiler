@@ -533,9 +533,56 @@ static int printInstruction(BytecodeStream* bs, int idx) {
             printf("OUTPUT_NL");
             return 1;
         }
+        case READ_LINE: {
+            printf("READ_LINE");
+            return 1;
+        }
+        case WRITE_INT: {
+            printf("WRITE_INT");
+            return 1;
+        }
+        case WRITE_REAL: {
+            printf("WRITE_REAL");
+            return 1;
+        }
+        case WRITE_CHAR: {
+            printf("WRITE_CHAR");
+            return 1;
+        }
+        case WRITE_BOOL: {
+            printf("WRITE_BOOL");
+            return 1;
+        }
+        case WRITE_REF: {
+            printf("WRITE_REF");
+            return 1;
+        }
+        case WRITE_STRING: {
+            printf("WRITE_STRING");
+            return 1;
+        }
+        case WRITE_NL: {
+            printf("WRITE_NL");
+            return 1;
+        }
+        case OPENFILE: {
+            printf("OPENFILE");
+            return 1;
+        }
+        case CLOSEFILE: {
+            printf("CLOSEFILE");
+            return 1;
+        }
         case EXIT: {
             printf("EXIT");
             return 1;
+        }
+        case CALL_BUILTIN: {
+            printf("CALL_BUILTIN -> ");
+            int builtin;
+            READ_INT(builtin, idx + 1);
+            printf("%d", builtin);
+            return 5;
         }
 
         /*case RINPUT_INT: {
@@ -578,6 +625,8 @@ static int printInstruction(BytecodeStream* bs, int idx) {
             return 1;
         }
     }
+
+    return 0;
 }
 
 void printBytestream(BytecodeStream* bs) {

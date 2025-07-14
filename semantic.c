@@ -166,6 +166,19 @@ static bool addSymbol(Analyser* analyser, const char* key, ASTNode* node, Symbol
     return setTable(analyser->symbolTable, key, node, type, 0, false, false);
 }
 
+static bool addFile(Analyser* analyser, const char* key, ASTNode* node, SymbolType type, FileAccessType access) {
+    bool res = setTableFile(analyser->symbolTable, key, node, type, 0, false, false, access);
+    if (res) analyser->symbolTable->filesOpened++;
+
+    return res;
+}
+
+static bool removeFile(Analyser* analyser, const char* key) {
+    bool res = deleteTable(analyser->symbolTable, key);
+    if (res) analyser->symbolTable->filesOpened--;
+    return res;
+}
+
 static bool createScope(Analyser* analyser, ScopeType type) {
     SymbolTable* newTable = malloc(sizeof(SymbolTable));
     if (newTable == NULL) return false;
@@ -260,10 +273,55 @@ static DataType semanticCheck(Analyser* analyser, ASTNode* node) {
                 fprintf(stderr, "'%s' not in scope.", name);
                 return TYPE_ERROR;
             }
-            if (callable.type != SYMBOL_FUNC) {
+            if (callable.type != SYMBOL_FUNC && callable.type != SYMBOL_BUILTIN_FUNC) {
                 semanticError(analyser, node, "Expected function in call expression, but got other.");
                 return TYPE_ERROR;
             }
+
+            if (callable.type == SYMBOL_BUILTIN_FUNC) {
+                if (node->as.CallExpr.arguments.count != ((Builtin*)callable.node)->numParams) {
+                    semanticError(analyser, node, "Expected ");
+                    fprintf(stderr, "%d arguments as per definition but got %d.", callable.node->as.SubroutineStmt.parameters.count,
+                            node->as.CallExpr.arguments.count);
+                    return TYPE_ERROR;
+                }
+
+                free(name);
+
+                if (((Builtin*)callable.node)->builtinIdx == 7) { // EOF()
+                    if (node->as.CallExpr.arguments.start[0]->type != EXPR_LITERAL && semanticCheck(analyser, node->as.CallExpr.arguments.start[0]) != TYPE_STRING) {
+                        semanticError(analyser, node, "Argument number 1 is not correct type.");
+                        return TYPE_ERROR;
+                    }
+
+                    node->as.CallExpr.arguments.start[0]->type = EXPR_VARIABLE;
+                    node->as.CallExpr.arguments.start[0]->as.VariableExpr.assigned = false;
+
+                    if (semanticCheck(analyser, node->as.CallExpr.arguments.start[0]) != TYPE_FILE) {
+                        semanticError(analyser, node, "Not a valid file path.");
+                        return TYPE_ERROR;
+                    }
+
+                    node->as.CallExpr.resultType = ((Builtin*)callable.node)->returnType;
+
+                    return TYPE_BOOLEAN;
+                }
+
+                for (int i = 0; i < node->as.CallExpr.arguments.count; i++) {
+                    DataType type = semanticCheck(analyser, node->as.CallExpr.arguments.start[i]);
+                    if (type == TYPE_ERROR) continue;
+                    if (type != ((Builtin*)callable.node)->parameterTypes[i]) {
+                        semanticError(analyser, node, "Argument number ");
+                        fprintf(stderr, "%d is not correct type.", i + 1);
+                        return TYPE_ERROR;
+                    }
+                }
+
+                node->as.CallExpr.resultType = ((Builtin*)callable.node)->returnType;
+
+                return node->as.CallExpr.resultType;
+            }
+
             if (!callable.initialised) {
                 semanticError(analyser, node, "Symbol ");
                 fprintf(stderr, "'%s' is not initialised previously, and therefore, cannot be used.", name);
@@ -318,7 +376,7 @@ static DataType semanticCheck(Analyser* analyser, ASTNode* node) {
                 fprintf(stderr, "%s not in scope.", name);
                 return TYPE_ERROR;
             }
-            if (var.type != SYMBOL_VAR && var.type != SYMBOL_PARAM && var.type != SYMBOL_CONST && var.type != SYMBOL_FOR_COUNTER && var.type != SYMBOL_ARRAY) {
+            if (var.type != SYMBOL_VAR && var.type != SYMBOL_PARAM && var.type != SYMBOL_CONST && var.type != SYMBOL_FOR_COUNTER && var.type != SYMBOL_ARRAY && var.type != SYMBOL_FILE) {
                 semanticError(analyser, node, "Expect variable. Subroutines are NOT first class.");
                 return TYPE_ERROR;
             }
@@ -360,6 +418,8 @@ static DataType semanticCheck(Analyser* analyser, ASTNode* node) {
                 node->as.VariableExpr.resultType = var.node->as.ConstDeclareStmt.type;
             } else if (var.type == SYMBOL_FOR_COUNTER) {
                 node->as.VariableExpr.resultType = TYPE_INTEGER;
+            } else if (var.type == SYMBOL_FILE) {
+                node->as.VariableExpr.resultType = TYPE_FILE;
             } else {
                 node->as.VariableExpr.resultType = TYPE_ARRAY;
             }
@@ -565,6 +625,9 @@ static DataType semanticCheck(Analyser* analyser, ASTNode* node) {
 
             semanticCheck(analyser, node->as.SubroutineStmt.body);
 
+            if (analyser->symbolTable->filesOpened > 0) {
+                semanticWarning(node, "Not all file streams have been closed properly in this scope.");
+            }
             endScope(analyser);
 
             analyser->currentFunction = prevFunc;
@@ -593,6 +656,9 @@ static DataType semanticCheck(Analyser* analyser, ASTNode* node) {
 
             semanticCheck(analyser, node->as.IfStmt.thenBranch);
 
+            if (analyser->symbolTable->filesOpened > 0) {
+                semanticWarning(node, "Not all file streams have been closed properly in this scope.");
+            }
             endScope(analyser);
 
             bool thenReturns = analyser->hasReturned;
@@ -602,6 +668,9 @@ static DataType semanticCheck(Analyser* analyser, ASTNode* node) {
                 analyser->hasReturned = false;
                 createScope(analyser, SCOPE_CONDITIONAL);
                 semanticCheck(analyser, node->as.IfStmt.elseBranch);
+                if (analyser->symbolTable->filesOpened > 0) {
+                    semanticWarning(node, "Not all file streams have been closed properly in this scope.");
+                }
                 endScope(analyser);
                 elseReturns = analyser->hasReturned;
             }
@@ -718,6 +787,9 @@ static DataType semanticCheck(Analyser* analyser, ASTNode* node) {
 
             semanticCheck(analyser, node->as.WhileStmt.body);
 
+            if (analyser->symbolTable->filesOpened > 0) {
+                semanticWarning(node, "Not all file streams have been closed properly in this scope.");
+            }
             endScope(analyser);
 
             analyser->hasReturned = origReturn;
@@ -821,6 +893,9 @@ static DataType semanticCheck(Analyser* analyser, ASTNode* node) {
                 analyser->caseReturns = false;
             }
 
+            if (analyser->symbolTable->filesOpened > 0) {
+                semanticWarning(node, "Not all file streams have been closed properly in this scope.");
+            }
             endScope(analyser);
 
             if (analyser->caseReturns) {
@@ -843,6 +918,9 @@ static DataType semanticCheck(Analyser* analyser, ASTNode* node) {
 
             semanticCheck(analyser, node->as.RepeatStmt.body);
 
+            if (analyser->symbolTable->filesOpened > 0) {
+                semanticWarning(node, "Not all file streams have been closed properly in this scope.");
+            }
             endScope(analyser);
 
             analyser->hasReturned = origReturn;
@@ -916,6 +994,9 @@ static DataType semanticCheck(Analyser* analyser, ASTNode* node) {
 
             semanticCheck(analyser, node->as.ForStmt.body);
 
+            if (analyser->symbolTable->filesOpened > 0) {
+                semanticWarning(node, "Not all file streams have been closed properly in this scope.");
+            }
             endScope(analyser);
 
             analyser->hasReturned = origReturn;
@@ -1005,6 +1086,160 @@ static DataType semanticCheck(Analyser* analyser, ASTNode* node) {
             semanticCheck(analyser, node->as.CaseBlockStmt.body);
             return TYPE_NONE;
         }
+        case STMT_OPENFILE: {
+            char* filename = extractNullTerminatedString(node->as.OpenfileStmt.filename->start, node->as.OpenfileStmt.filename->length);
+            Symbol file;
+            bool res = findSymbol(analyser, filename, &file);
+            if (res) {
+                semanticError(analyser, node, "File ");
+                fprintf(stderr, "%s is already open.", filename);
+                return TYPE_ERROR;
+            }
+
+            bool added = addFile(analyser, filename, node, SYMBOL_FILE, node->as.OpenfileStmt.accessType);
+            initialiseSymbol(analyser, filename);
+
+            free(filename);
+
+            return TYPE_NONE;
+        }
+        case STMT_CLOSEFILE: {
+            char* filename = extractNullTerminatedString(node->as.ClosefileStmt.filename->start, node->as.ClosefileStmt.filename->length);
+            Symbol file;
+            bool res = findSymbolInCurrScope(analyser, filename, &file);
+            if (!res) {
+                semanticError(analyser, node, "File ");
+                fprintf(stderr, "%s not found in current scope. Files may only be closed in the same scope in which they were opened.", filename);
+                return TYPE_ERROR;
+            }
+
+            removeFile(analyser, filename);
+            free(filename);
+
+            return TYPE_NONE;
+        }
+        case STMT_READFILE: {
+            char* filename = extractNullTerminatedString(node->as.ReadfileStmt.filename->start, node->as.ReadfileStmt.filename->length);
+            Symbol file;
+            bool res = findSymbol(analyser, filename, &file);
+            if (!res) {
+                semanticError(analyser, node, "File ");
+                fprintf(stderr, "%s is not open and therefore can't be read.", filename);
+                return TYPE_ERROR;
+            }
+
+            if (file.type != SYMBOL_FILE) {
+                semanticError(analyser, node, "Symbol ");
+                fprintf(stderr, "%s is not a file.", filename);
+                return TYPE_ERROR;
+            }
+
+            if (file.access != ACCESS_READ) {
+                semanticError(analyser, node, "File ");
+                fprintf(stderr, "%s is not open for READ, therefore it can't be read.", filename);
+                return TYPE_ERROR;
+            }
+
+            free(filename);
+
+            char* name;
+
+            if (node->as.ReadfileStmt.varAccess->type == EXPR_CALL) {
+                semanticError(analyser, node, "Call expression ");
+                fprintf(stderr, "%.*s is not assignable.", (int)node->as.ReadfileStmt.varAccess->length, node->as.ReadfileStmt.varAccess->start);
+                return TYPE_ERROR;
+            }
+
+            if (node->as.ReadfileStmt.varAccess->type == EXPR_VARIABLE) {
+                name = extractNullTerminatedString(node->as.ReadfileStmt.varAccess->as.VariableExpr.name->start, node->as.ReadfileStmt.varAccess->as.VariableExpr.name->length);
+            } else if (node->as.InputStmt.varAccess->type == EXPR_ARRAY_ACCESS) {
+                name = extractNullTerminatedString(node->as.ReadfileStmt.varAccess->as.ArrayAccessExpr.name->start, node->as.ReadfileStmt.varAccess->as.ArrayAccessExpr.name->length);
+            } else {
+                semanticError(analyser, node, "Expression not assignable.");
+                return TYPE_ERROR;
+            }
+
+            //char* name = extractNullTerminatedString(node->as.InputStmt.name->start, node->as.InputStmt.name->length);
+            Symbol var;
+            bool res2 = findSymbol(analyser, name, &var);
+
+            if (!res) {
+                semanticError(analyser, node, "Target variable ");
+                fprintf(stderr, "'%s' not in scope.", name);
+                return TYPE_ERROR;
+            }
+
+            if (var.type == SYMBOL_FOR_COUNTER) {
+                semanticError(analyser, node, "Symbol ");
+                fprintf(stderr, "'%s' is a counter in a FOR loop. It can't be inputted to.", name);
+                return TYPE_ERROR;
+            }
+
+            if (var.type != SYMBOL_VAR && var.type != SYMBOL_PARAM && !(var.type == SYMBOL_ARRAY && node->as.InputStmt.varAccess->type == EXPR_ARRAY_ACCESS)) {
+                semanticError(analyser, node, "Symbol ");
+                fprintf(stderr, "'%s' is not a variable. Array references, constants and subroutines can't be inputted to.", name);
+                return TYPE_ERROR;
+            }
+
+            if (var.type == SYMBOL_PARAM && var.node->as.Parameter.isArray && node->as.InputStmt.varAccess->type != EXPR_ARRAY_ACCESS) {
+                semanticError(analyser, node, "Symbol ");
+                fprintf(stderr, "'%s' is not a variable, but an ARRAY reference. It can't be inputted to.", name);
+                return TYPE_ERROR;
+            }
+
+            /*if (var.type == SYMBOL_VAR) {
+                node->as.InputStmt.expectedType = var.node->as.VarDeclareStmt.type;
+            } else {
+                node->as.InputStmt.expectedType = var.node->as.Parameter.type;
+            }*/
+
+            analyser->assigning = true;
+
+            if (semanticCheck(analyser, node->as.InputStmt.varAccess) != TYPE_STRING) {
+                semanticError(analyser, node, "Target variable in READFILE must be of type STRING.");
+                return TYPE_ERROR;
+            }
+
+            analyser->assigning = false;
+
+            initialiseSymbol(analyser, name);
+
+            free(name);
+
+            return TYPE_NONE;
+        }
+        case STMT_WRITEFILE: {
+            char* filename = extractNullTerminatedString(node->as.WritefileStmt.filename->start, node->as.WritefileStmt.filename->length);
+            Symbol file;
+
+            bool res = findSymbol(analyser, filename, &file);
+            if (!res) {
+                semanticError(analyser, node, "File ");
+                fprintf(stderr, "%s is not open and therefore can't be written to.", filename);
+                return TYPE_ERROR;
+            }
+
+            if (file.type != SYMBOL_FILE) {
+                semanticError(analyser, node, "Symbol ");
+                fprintf(stderr, "%s is not a file.", filename);
+                return TYPE_ERROR;
+            }
+
+            if (file.access != ACCESS_WRITE && file.access != ACCESS_APPEND) {
+                semanticError(analyser, node, "File ");
+                fprintf(stderr, "%s is not open for WRITE nor APPEND, therefore it can't be written to.", filename);
+                return TYPE_ERROR;
+            }
+
+            free(filename);
+
+            for (int i = 0; i < node->as.WritefileStmt.expressions.count; i++) {
+                semanticCheck(analyser, node->as.WritefileStmt.expressions.start[i]);
+            }
+
+            return TYPE_NONE;
+
+        }
         case STMT_PROGRAM: {
             for (int i = 0; i < node->as.ProgramStmt.body.count; i++) {
                 semanticCheck(analyser, node->as.ProgramStmt.body.start[i]);
@@ -1049,6 +1284,50 @@ void freeAnalyser(Analyser* analyser) {
 
 bool semanticAnalysis(Analyser* analyser, AST* ast) {
     ASTNode* program = ast->program;
+
+    //
+    Builtin substring;
+    createBuiltin(&substring, 3, TYPE_STRING, 0);
+    addParamDatatype(&substring, TYPE_STRING, 0);
+    addParamDatatype(&substring, TYPE_INTEGER, 1);
+    addParamDatatype(&substring, TYPE_INTEGER, 2);
+    addSymbol(analyser, "SUBSTRING", (ASTNode*)&substring, SYMBOL_BUILTIN_FUNC);
+
+    Builtin length;
+    createBuiltin(&length, 1, TYPE_INTEGER, 1);
+    addParamDatatype(&length, TYPE_STRING, 0);
+    addSymbol(analyser, "LENGTH", (ASTNode*)&length, SYMBOL_BUILTIN_FUNC);
+
+    Builtin lcase;
+    createBuiltin(&lcase, 1, TYPE_STRING, 2);
+    addParamDatatype(&lcase, TYPE_STRING, 0);
+    addSymbol(analyser, "LCASE", (ASTNode*)&lcase, SYMBOL_BUILTIN_FUNC);
+
+    Builtin ucase;
+    createBuiltin(&ucase, 1, TYPE_STRING, 3);
+    addParamDatatype(&ucase, TYPE_STRING, 0);
+    addSymbol(analyser, "UCASE", (ASTNode*)&lcase, SYMBOL_BUILTIN_FUNC);
+
+    Builtin randomBetween;
+    createBuiltin(&randomBetween, 2, TYPE_INTEGER, 4);
+    addParamDatatype(&randomBetween, TYPE_INTEGER, 0);
+    addParamDatatype(&randomBetween, TYPE_INTEGER, 1);
+    addSymbol(analyser, "RANDOMBETWEEN", (ASTNode*)&randomBetween, SYMBOL_BUILTIN_FUNC);
+
+    Builtin rnd;
+    createBuiltin(&rnd, 0, TYPE_REAL, 5);
+    addSymbol(analyser, "RND", (ASTNode*)&rnd, SYMBOL_BUILTIN_FUNC);
+
+    Builtin integer;
+    createBuiltin(&integer, 1, TYPE_INTEGER, 6);
+    addParamDatatype(&integer, TYPE_REAL, 0);
+    addSymbol(analyser, "INT", (ASTNode*)&integer, SYMBOL_BUILTIN_FUNC);
+
+    Builtin eof;
+    createBuiltin(&eof, 1, TYPE_BOOLEAN, 7);
+    addParamDatatype(&eof, TYPE_STRING, 0);
+    addSymbol(analyser, "EOF", (ASTNode*)&eof, SYMBOL_BUILTIN_FUNC);
+    //
 
     // SUBROUTINES ARE NO LONGER STATIC, MUST BE DECLARED BEFORE USE
     //bool staticRes = staticSymbolCheck(analyser, program); // CHECKS FOR SUBROUTINES IN THE TOP LEVEL SO THAT THEY ARE STATIC SYMBOLS

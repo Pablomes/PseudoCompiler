@@ -18,6 +18,7 @@ typedef enum {
     STMT_WHILE, STMT_VAR_DECLARE, STMT_CONST_DECLARE,
     STMT_ARRAY_DECLARE, STMT_CASE, STMT_REPEAT, STMT_CALL,
     STMT_CASE_BLOCK, STMT_PROGRAM, STMT_FOR, STMT_CASE_LINE,
+    STMT_OPENFILE, STMT_CLOSEFILE, STMT_READFILE, STMT_WRITEFILE,
 
     // MISCELLANEOUS
     AST_PARAMETER
@@ -26,12 +27,16 @@ typedef enum {
 
 typedef enum {
     TYPE_INTEGER, TYPE_REAL, TYPE_BOOLEAN,
-    TYPE_CHAR, TYPE_STRING, TYPE_ARRAY, TYPE_SUBROUTINE, TYPE_NONE, TYPE_ERROR
+    TYPE_CHAR, TYPE_STRING, TYPE_ARRAY, TYPE_FILE, TYPE_SUBROUTINE, TYPE_NONE, TYPE_ERROR
 } DataType;
 
 typedef enum {
     TYPE_FUNCTION, TYPE_PROCEDURE
 } SubroutineType;
+
+typedef enum {
+    ACCESS_NONE, ACCESS_READ, ACCESS_WRITE, ACCESS_APPEND
+} FileAccessType;
 
 typedef enum {
     OP_NONE,
@@ -213,6 +218,25 @@ struct ASTNode{
         } CaseBlockStmt;
 
         struct {
+            Token* filename;
+            FileAccessType accessType;
+        } OpenfileStmt;
+
+        struct {
+            Token* filename;
+        } ClosefileStmt;
+
+        struct {
+            Token* filename;
+            struct ASTNode* varAccess;
+        } ReadfileStmt;
+
+        struct {
+            Token* filename;
+            ASTNodeArray expressions;
+        } WritefileStmt;
+
+        struct {
             ASTNodeArray body;
         } ProgramStmt;
 
@@ -236,6 +260,7 @@ typedef struct {
     Token* current;
     bool hadError;
     bool panicMode;
+    bool produceErrors;
     AST ast;
 } Parser;
 

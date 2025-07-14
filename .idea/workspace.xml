@@ -23,7 +23,30 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="cfd7e6ae-7aac-489e-a874-8dd10ce6574d" name="Changes" comment="" />
+    <list default="true" id="cfd7e6ae-7aac-489e-a874-8dd10ce6574d" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bytecode.c" beforeDir="false" afterPath="$PROJECT_DIR$/bytecode.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bytecode.h" beforeDir="false" afterPath="$PROJECT_DIR$/bytecode.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/.ninja_deps" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/.ninja_deps" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/.ninja_log" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/.ninja_log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/PseudoCompiler.exe" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/PseudoCompiler.exe" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Testing/Temporary/LastTest.log" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Testing/Temporary/LastTest.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/test.txt" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/test.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/common.h" beforeDir="false" afterPath="$PROJECT_DIR$/common.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/compiler.c" beforeDir="false" afterPath="$PROJECT_DIR$/compiler.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lexer.c" beforeDir="false" afterPath="$PROJECT_DIR$/lexer.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.c" beforeDir="false" afterPath="$PROJECT_DIR$/main.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/memory.c" beforeDir="false" afterPath="$PROJECT_DIR$/memory.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/memory.h" beforeDir="false" afterPath="$PROJECT_DIR$/memory.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/object.c" beforeDir="false" afterPath="$PROJECT_DIR$/object.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/object.h" beforeDir="false" afterPath="$PROJECT_DIR$/object.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/parser.c" beforeDir="false" afterPath="$PROJECT_DIR$/parser.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/parser.h" beforeDir="false" afterPath="$PROJECT_DIR$/parser.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/semantic.c" beforeDir="false" afterPath="$PROJECT_DIR$/semantic.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/symbol.c" beforeDir="false" afterPath="$PROJECT_DIR$/symbol.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/symbol.h" beforeDir="false" afterPath="$PROJECT_DIR$/symbol.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vm.c" beforeDir="false" afterPath="$PROJECT_DIR$/vm.c" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -173,6 +196,7 @@
       <workItem from="1750351717492" duration="21698000" />
       <workItem from="1750774891212" duration="7919000" />
       <workItem from="1751190437172" duration="91000" />
+      <workItem from="1752423292810" duration="20988000" />
     </task>
     <servers />
   </component>
