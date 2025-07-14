@@ -42,3 +42,15 @@
 360	534	7742217012003212	PseudoCompiler.exe	5ed5da6c4624616
 4	258	7742220076749432	CMakeFiles/PseudoCompiler.dir/parser.c.obj	518ffe8f15fc6f7
 259	428	7742220079295853	PseudoCompiler.exe	5ed5da6c4624616
+6	161	7742240694968694	CMakeFiles/PseudoCompiler.dir/main.c.obj	5ff5a13c163230be
+10	166	7742240695011701	CMakeFiles/PseudoCompiler.dir/bytecode.c.obj	9fc1397d3ec28f13
+166	356	7742240696565794	PseudoCompiler.exe	5ed5da6c4624616
+5	165	7742244205111307	CMakeFiles/PseudoCompiler.dir/main.c.obj	5ff5a13c163230be
+165	349	7742244206711914	PseudoCompiler.exe	5ed5da6c4624616
+5	139	7742244967834090	CMakeFiles/PseudoCompiler.dir/main.c.obj	5ff5a13c163230be
+139	296	7742244969176132	PseudoCompiler.exe	5ed5da6c4624616
+5	165	7742246925425232	CMakeFiles/PseudoCompiler.dir/main.c.obj	5ff5a13c163230be
+9	169	7742246925476689	CMakeFiles/PseudoCompiler.dir/bytecode.c.obj	9fc1397d3ec28f13
+13	235	7742246925513213	CMakeFiles/PseudoCompiler.dir/compiler.c.obj	9eb5ef3d7311d6e7
+17	353	7742246925554865	CMakeFiles/PseudoCompiler.dir/vm.c.obj	30785886f19d75ba
+353	515	7742246928911885	PseudoCompiler.exe	5ed5da6c4624616

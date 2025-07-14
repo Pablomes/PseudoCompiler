@@ -681,23 +681,27 @@ bool genBinFile(BytecodeStream* bs, const char* fileName) {
     return true;
 }
 
-bool readBinFile(BytecodeStream* bs, const char* fileName) {
+bool readBinFile(BytecodeStream* bs, const char* fileName, bool addExtension) {
     FILE* filePtr;
 
-    const char* extension = ".pcbc";
-    char* name = malloc(strlen(fileName) + strlen(extension) + 1);
-    if (name == NULL) {
-        printf("Problem allocating memory for filename.\n");
-        return false;
-    }
+    const char* name = fileName;
 
-    name[0] = '\0';
-    strcat(name, fileName);
-    strcat(name, extension);
+    if (addExtension) {
+        const char* extension = ".pcbc";
+        char* name = malloc(strlen(fileName) + strlen(extension) + 1);
+        if (name == NULL) {
+            printf("Problem allocating memory for filename.\n");
+            return false;
+        }
+
+        name[0] = '\0';
+        strcat(name, fileName);
+        strcat(name, extension);
+    }
 
     filePtr = fopen(name, "rb");
 
-    free(name);
+    //free(name);
 
     if (filePtr == NULL) {
         printf("Problem opening file.\n");

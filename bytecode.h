@@ -78,6 +78,6 @@ int getNextPos(BytecodeStream* bs);
 void printBytestream(BytecodeStream* bs);
 
 bool genBinFile(BytecodeStream* bs, const char* fileName);
-bool readBinFile(BytecodeStream* bs, const char* fileName);
+bool readBinFile(BytecodeStream* bs, const char* fileName, bool addExtension);
 
 #endif //PSEUDOCOMPILER_BYTECODE_H
