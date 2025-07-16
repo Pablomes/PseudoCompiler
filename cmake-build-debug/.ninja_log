@@ -54,3 +54,5 @@
 13	235	7742246925513213	CMakeFiles/PseudoCompiler.dir/compiler.c.obj	9eb5ef3d7311d6e7
 17	353	7742246925554865	CMakeFiles/PseudoCompiler.dir/vm.c.obj	30785886f19d75ba
 353	515	7742246928911885	PseudoCompiler.exe	5ed5da6c4624616
+5	151	7742250746267150	CMakeFiles/PseudoCompiler.dir/bytecode.c.obj	9fc1397d3ec28f13
+152	308	7742250747732705	PseudoCompiler.exe	5ed5da6c4624616

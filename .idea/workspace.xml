@@ -26,12 +26,10 @@
     <list default="true" id="cfd7e6ae-7aac-489e-a874-8dd10ce6574d" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/bytecode.c" beforeDir="false" afterPath="$PROJECT_DIR$/bytecode.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/bytecode.h" beforeDir="false" afterPath="$PROJECT_DIR$/bytecode.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmake-build-debug/.ninja_deps" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/.ninja_deps" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmake-build-debug/.ninja_log" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/.ninja_log" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmake-build-debug/PseudoCompiler.exe" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/PseudoCompiler.exe" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmake-build-debug/Testing/Temporary/LastTest.log" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Testing/Temporary/LastTest.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.c" beforeDir="false" afterPath="$PROJECT_DIR$/main.c" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -182,7 +180,7 @@
       <workItem from="1750351717492" duration="21698000" />
       <workItem from="1750774891212" duration="7919000" />
       <workItem from="1751190437172" duration="91000" />
-      <workItem from="1752423292810" duration="23312000" />
+      <workItem from="1752423292810" duration="23778000" />
     </task>
     <servers />
   </component>
