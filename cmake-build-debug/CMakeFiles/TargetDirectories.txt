@@ -1,3 +1,0 @@
-C:/Users/pablo/Desktop/Programming/PseudoCompiler/cmake-build-debug/CMakeFiles/PseudoCompiler.dir
-C:/Users/pablo/Desktop/Programming/PseudoCompiler/cmake-build-debug/CMakeFiles/edit_cache.dir
-C:/Users/pablo/Desktop/Programming/PseudoCompiler/cmake-build-debug/CMakeFiles/rebuild_cache.dir
