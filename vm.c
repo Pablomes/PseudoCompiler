@@ -309,6 +309,30 @@ static void eof(VM* vm) {
     PUSH_BOOL(isEOF);
 }
 
+static void charAt(VM* vm) {
+    int pos;
+    POP_INT(pos);
+
+    void* ref;
+    POP_REF(ref);
+
+    if (!isValidReference(&vm->mem, ref)) {
+        runtimeError(vm, "Segmentation fault.");
+        return;
+    }
+
+    Obj* str = (Obj*) ref;
+
+    if (pos <= 0 || pos > str->as.StringObj.length) {
+        runtimeError(vm, "Position must be between 1 and length of string.");
+        return;
+    }
+
+    char result = str->as.StringObj.start[pos - 1];
+
+    PUSH_CHAR(result);
+}
+
 static void runBuiltinFunc(VM* vm, int idx) {
     switch (idx) {
         case 0: {
@@ -341,6 +365,10 @@ static void runBuiltinFunc(VM* vm, int idx) {
         }
         case 7: {
             eof(vm);
+            break;
+        }
+        case 8: {
+            charAt(vm);
             break;
         }
         default: break;

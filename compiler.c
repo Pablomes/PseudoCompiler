@@ -1739,6 +1739,12 @@ bool compile(Compiler* compiler, AST* ast) {
     createBuiltin(&eof, 1, TYPE_BOOLEAN, 7);
     addParamDatatype(&eof, TYPE_STRING, 0);
     addSymbol(compiler, "EOF", (ASTNode*)&eof, SYMBOL_BUILTIN_FUNC, false, false, 0);
+
+    Builtin charAt;
+    createBuiltin(&charAt, 2, TYPE_CHAR, 8);
+    addParamDatatype(&charAt, TYPE_STRING, 0);
+    addParamDatatype(&charAt, TYPE_INTEGER, 1);
+    addSymbol(compiler, "CHARAT", (ASTNode*)&charAt, SYMBOL_BUILTIN_FUNC, false, false, 0);
     //
 
     initBytecodeStream(compiler->bStream);

@@ -1327,6 +1327,12 @@ bool semanticAnalysis(Analyser* analyser, AST* ast) {
     createBuiltin(&eof, 1, TYPE_BOOLEAN, 7);
     addParamDatatype(&eof, TYPE_STRING, 0);
     addSymbol(analyser, "EOF", (ASTNode*)&eof, SYMBOL_BUILTIN_FUNC);
+
+    Builtin charAt;
+    createBuiltin(&charAt, 2, TYPE_CHAR, 8);
+    addParamDatatype(&charAt, TYPE_STRING, 0);
+    addParamDatatype(&charAt, TYPE_INTEGER, 1);
+    addSymbol(analyser, "CHARAT", (ASTNode*)&charAt, SYMBOL_BUILTIN_FUNC);
     //
 
     // SUBROUTINES ARE NO LONGER STATIC, MUST BE DECLARED BEFORE USE
