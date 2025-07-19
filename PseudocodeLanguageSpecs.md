@@ -27,7 +27,7 @@ It also serves the purpose of specifying which features are actually included in
 
 <var declaration> ::= "DECLARE" <expression name> ":" <datatype> <new line>
 
-<constant declaration> ::= "CONSTANT" <expression name> <assignment operator> <literal> <new line>
+<constant declaration> ::= "CONSTANT" <expression name> "=" <literal> <new line>
 
 <array declaration> ::= <array1D declaration> | <array2D declaration>
 
@@ -207,6 +207,64 @@ Represented internally as an object on the heap, and an 8 byte pointer to it on 
 
 Represents an open file.\
 Represented internally as an object on the heap, and an 8 byte pointer to it on the operation stack.
+
+## Built-in functions
+
+These functions are all built into the VM in C. However, a header for a pseudocode equivalent is shown.
+
+### - SUBSTRING
+```
+FUNCTION SUBSTRING(Str:STRING, InitPos:INTEGER, Length:INTEGER) RETURNS STRING
+```
+Takes a string, an initial position and a length and returns the substring of set length starting at that position. String is 1-indexed.
+
+### - LENGTH
+```
+FUNCTION LENGTH(Str:STRING) RETURNS INTEGER
+```
+Takes a string and returns its length.
+
+### - LCASE
+```
+FUNCTION LCASE(Str:STRING) RETURNS STRING
+```
+Takes a string and returns its lower case equivalent.
+
+### - UCASE
+```
+FUNCTION UCASE(Str:STRING) RETURNS STRING
+```
+Takes a string and returns its upper case equivalent.
+
+### - RANDOMBETWEEN
+```
+FUNCTION RANDOMBETWEEN(Min:INTEGER, Max:INTEGER) RETURNS INTEGER
+```
+Takes an integer range and returns a random integer in the range [Min, Max]
+
+### - RND
+```
+FUNCTION RND() RETURNS REAL
+```
+Returns a random real in the range [0, 1]
+
+### - INT
+```
+FUNCTION INT(x:REAL) RETURNS INTEGER
+```
+Takes a real number x, and returns its truncated integer.
+
+### - EOF
+```
+FUNCTION EOF(Filename:STRING) RETURNS BOOLEAN
+```
+Takes a file name and returns TRUE if the end of the file has been reached. Returns FALSE otherwise. The file name must be known at compile time, via a string literal.
+
+### - CHARAT
+```
+FUNCTION CHARAT(Str:STRING, Pos:INTEGER) RETURNS CHAR
+```
+Takes a string and returns the character at position Pos. String is 1-indexed.
 
 ## Example programs
 
