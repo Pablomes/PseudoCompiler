@@ -1975,7 +1975,7 @@ static ASTNode* caseLine(Parser* parser) {
 
     match(parser, TOK_NEW_LINE);
 
-    ASTNode* res = statement(parser);
+    ASTNode* res = declaration(parser);
     if (res == NULL) {
         freeASTNode(line);
         freeASTNode(block);
@@ -1999,7 +1999,7 @@ static ASTNode* caseLine(Parser* parser) {
         }
 
         parser->current = temp;
-        ASTNode* subRes = statement(parser);
+        ASTNode* subRes = declaration(parser);
         if (subRes == NULL) {
             freeASTNode(line);
             freeASTNode(block);

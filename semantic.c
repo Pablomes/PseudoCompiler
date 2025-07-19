@@ -1074,7 +1074,11 @@ static DataType semanticCheck(Analyser* analyser, ASTNode* node) {
             bool origReturns = analyser->hasReturned;
             analyser->hasReturned = false;
 
+            createScope(analyser, SCOPE_CONDITIONAL);
+
             semanticCheck(analyser, node->as.CaseLineStmt.result);
+
+            endScope(analyser);
 
             analyser->caseReturns &= analyser->hasReturned;
 

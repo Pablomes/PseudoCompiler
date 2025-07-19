@@ -1408,7 +1408,7 @@ static void runInstruction(VM* vm) {
         case INPUT_REAL: {
             //clearInputBuffer();
             double num;
-            int res = scanf("%f", &num);
+            int res = scanf("%lf", &num);
             clearInputBuffer();
 
             if (res <= 0) {

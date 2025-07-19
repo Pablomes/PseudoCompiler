@@ -121,6 +121,13 @@ bool isValidReference(ProgramMemory* mem, void* ptr) {
 void markCell(ProgramMemory* mem, void* ptr) {
     if (!inProgramMemory(mem, ptr)) return;
 
+    if (((MemoryCell*)ptr)->obj.type == OBJ_ARRAY && ((MemoryCell*)ptr)->obj.as.ArrayObj.elemSize == 8) {
+        for (int i = 0; i < ((MemoryCell*)ptr)->obj.as.ArrayObj.length * ((MemoryCell*)ptr)->obj.as.ArrayObj.width; i+=8) {
+            byte8 strPtr = (((byte8)((MemoryCell*)ptr)->obj.as.ArrayObj.start[i]) << 56) | (((byte8)((MemoryCell*)ptr)->obj.as.ArrayObj.start[i + 1]) << 48) | (((byte8)((MemoryCell*)ptr)->obj.as.ArrayObj.start[i + 2]) << 40) | (((byte8)((MemoryCell*)ptr)->obj.as.ArrayObj.start[i + 3]) << 32) | (((byte8)((MemoryCell*)ptr)->obj.as.ArrayObj.start[i + 4]) << 24) | (((byte8)((MemoryCell*)ptr)->obj.as.ArrayObj.start[i + 5]) << 16) | (((byte8)((MemoryCell*)ptr)->obj.as.ArrayObj.start[i + 6]) << 8) | (((byte8)((MemoryCell*)ptr)->obj.as.ArrayObj.start[i + 7]));
+            markCell(mem, (void*)strPtr);
+        }
+    }
+
     ((MemoryCell*)ptr)->marked = true;
 }
 
