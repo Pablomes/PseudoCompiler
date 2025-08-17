@@ -1279,13 +1279,25 @@ static void compileNode(Compiler* compiler, ASTNode* node) {
             }
             addOp(compiler, POP_4B);
 
+            int sign = 1;
             int step = 1;
 
             if (node->as.ForStmt.step != NULL) {
-                char* stepStr = extractNullTerminatedString(node->as.ForStmt.step->as.LiteralExpr.value->start, node->as.ForStmt.step->as.LiteralExpr.value->length);
+
+                ASTNode* curr = node->as.ForStmt.step;
+                while (curr->type != EXPR_LITERAL) {
+                    if (curr->as.UnaryExpr.op == UNARY_NEG) {
+                        sign *= -1;
+                    }
+                    curr = curr->as.UnaryExpr.right;
+                }
+
+                char* stepStr = extractNullTerminatedString(curr->as.LiteralExpr.value->start, curr->as.LiteralExpr.value->length);
                 step = atoi(stepStr);
                 free(stepStr);
             }
+
+            step *= sign;
 
             //
 

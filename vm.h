@@ -23,6 +23,6 @@ typedef struct {
 void initVM(VM* vm, int heapCapacity, int stackCapacity, int callStackCapacity, BytecodeStream* bStream);
 void freeVM(VM* vm);
 
-void run(VM* vm);
+void run(VM* vm, bool debug);
 
 #endif //PSEUDOCOMPILER_VM_H

@@ -1896,17 +1896,17 @@ static void markReferences(VM* vm) {
 #undef READSTACK_8BYTE
 }
 
-void run(VM* vm) {
+void run(VM* vm, bool debug) {
     while (vm->PC >= 0 && !vm->hadRuntimeError) {
-        //printf("RUNNING instruction %d\n", vm->PC);
+        if (debug) printf("RUNNING instruction %d\n", vm->PC);
         runInstruction(vm);
-        //showStack(&vm->stack);
+        if (debug) showStack(&vm->stack);
         advance(vm);
 
         if (vm->mem.inUse >= vm->mem.memSize * 0.75) {
             markReferences(vm);
             size_t memCollected = collectGarbage(&vm->mem);
-            printf("GARBAGE COLLECTOR COLLECTED %zu bytes.", memCollected);
+            if (debug) printf("GARBAGE COLLECTOR COLLECTED %zu bytes.", memCollected);
         }
     }
 

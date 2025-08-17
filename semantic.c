@@ -936,9 +936,29 @@ static DataType semanticCheck(Analyser* analyser, ASTNode* node) {
                 semanticError(analyser, node, "Final value in FOR loop must be of type INTEGER.");
                 return TYPE_ERROR;
             }
-            if (node->as.ForStmt.step != NULL && (node->as.ForStmt.step->type != EXPR_LITERAL || semanticCheck(analyser, node->as.ForStmt.step) != TYPE_INTEGER)) {
+            if (node->as.ForStmt.step != NULL && ((node->as.ForStmt.step->type != EXPR_LITERAL && node->as.ForStmt.step->type != EXPR_UNARY) || semanticCheck(analyser, node->as.ForStmt.step) != TYPE_INTEGER)) {
                 semanticError(analyser, node, "STEP value in FOR loop must be an INTEGER literal.");
                 return TYPE_ERROR;
+            }
+            if (node->as.ForStmt.step != NULL && node->as.ForStmt.step->type == EXPR_UNARY) {
+                ASTNode* curr = node->as.ForStmt.step;
+                while (curr != NULL) {
+                    if (curr->type != EXPR_UNARY && curr->type != EXPR_LITERAL) {
+                        semanticError(analyser, node, "Invalid operation for STEP value.");
+                        return TYPE_ERROR;
+                    }
+
+                    if (curr->type == EXPR_UNARY && curr->as.UnaryExpr.op == UNARY_NOT) {
+                        semanticError(analyser, node, "Invalid unary operation.");
+                        return TYPE_ERROR;
+                    }
+
+                    if (curr->type == EXPR_UNARY) {
+                        curr = curr->as.UnaryExpr.right;
+                    } else {
+                        curr = NULL;
+                    }
+                }
             }
 
             char* name = extractNullTerminatedString(node->as.ForStmt.counterName->start, node->as.ForStmt.counterName->length);

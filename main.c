@@ -70,7 +70,7 @@ static bool hasExtension(const char* filename, const char* extension) {
     return strcmp(dot, extension) == 0;
 }
 
-static void runFile(const char* path) {
+static void runFile(const char* path, bool debug) {
     char* source = readFile(path);
 
     Lexer lexer;
@@ -78,7 +78,7 @@ static void runFile(const char* path) {
 
     scanSource(&lexer);
 
-    //printTokens(&lexer);
+    if (debug) printTokens(&lexer);
 
     Parser parser;
     initParser(&parser, lexer.array);
@@ -103,9 +103,9 @@ static void runFile(const char* path) {
         return;
     }
 
-    //printf("ANALYSED CORRECTLY\n");
+    if (debug)  printf("ANALYSED CORRECTLY\n");
 
-    //printAST(&parser);
+    if (debug) printAST(&parser);
 
     BytecodeStream stream;
     initBytecodeStream(&stream);
@@ -115,19 +115,19 @@ static void runFile(const char* path) {
 
     compile(&compiler, &parser.ast);
 
-    //printf("COMPILED\n");
+    if (debug) printf("COMPILED\n");
 
-    //printCompileResult(&compiler);
+    if (debug) printCompileResult(&compiler);
 
 
     VM vm;
     initVM(&vm, 1024, 1024, 256, compiler.bStream);
 
-    /*printf("_______________________________________________\n");
-    printf("RUN RESULT\n");
-    printf("_______________________________________________\n\n");*/
+    if (debug) printf("_______________________________________________\n");
+    if (debug) printf("RUN RESULT\n");
+    if (debug) printf("_______________________________________________\n\n");
 
-    run(&vm);
+    run(&vm, debug);
 
     /*for (int i = 0; i < compiler.bStream->count; i++) {
         printf("%x\n", compiler.bStream->stream[i]);
@@ -148,13 +148,15 @@ static void runFile(const char* path) {
     freeVM(&vm);
 }
 
-static void compileFile(const char* path, const char* target) {
+static void compileFile(const char* path, const char* target, bool debug) {
     char* source = readFile(path);
 
     Lexer lexer;
     initLexer(&lexer, source);
 
     scanSource(&lexer);
+
+    if (debug) printTokens(&lexer);
 
     Parser parser;
     initParser(&parser, lexer.array);
@@ -179,6 +181,10 @@ static void compileFile(const char* path, const char* target) {
         return;
     }
 
+    if (debug)  printf("ANALYSED CORRECTLY\n");
+
+    if (debug) printAST(&parser);
+
     BytecodeStream stream;
     initBytecodeStream(&stream);
 
@@ -193,6 +199,10 @@ static void compileFile(const char* path, const char* target) {
         fprintf(stderr, "Something went wrong generating the binary file.\n");
     }
 
+    if (debug) printf("COMPILED\n");
+
+    if (debug) printCompileResult(&compiler);
+
     freeParser(&parser);
     freeLexer(&lexer);
     freeAnalyser(&analyser);
@@ -200,7 +210,7 @@ static void compileFile(const char* path, const char* target) {
     freeBytecodeStream(&stream);
 }
 
-static void runBytecode(const char* path) {
+static void runBytecode(const char* path, bool debug) {
     bool addExtension = !hasExtension(path, ".pcbc");
 
     BytecodeStream stream;
@@ -212,7 +222,11 @@ static void runBytecode(const char* path) {
     VM vm;
     initVM(&vm, 1024, 1024, 256, &stream);
 
-    run(&vm);
+    if (debug) printf("_______________________________________________\n");
+    if (debug) printf("RUN RESULT\n");
+    if (debug) printf("_______________________________________________\n\n");
+
+    run(&vm, debug);
 
     freeBytecodeStream(&stream);
     freeVM(&vm);
@@ -228,24 +242,36 @@ int main(int argc, char* argv[]) {
         const char* path = argv[1];
 
         if (strcmp(invoked_as, "pseudor") == 0) {
+            if (argc == 3 && strcmp(argv[2], "true") == 0) {
+                runFile(path, true);
+                return 0;
+            }
             if (argc != 2) {
                 fprintf(stderr, "Usage: pseudor <file path>\n");
                 return 1;
             }
-            runFile(path);
+            runFile(path, false);
         } else if (strcmp(invoked_as, "pseudoc") == 0) {
+            if (argc == 4 && strcmp(argv[3], "true") == 0) {
+                compileFile(path, argv[2], true);
+                return 0;
+            }
             if (argc != 3) {
                 fprintf(stderr, "Usage: pseudoc <file path> <target name>\n");
                 return 1;
             }
 
-            compileFile(path, argv[2]);
+            compileFile(path, argv[2], false);
         } else if (strcmp(invoked_as, "pseudo") == 0) {
+            if (argc == 3 && strcmp(argv[2], "true")) {
+                runBytecode(path, true);
+                return 0;
+            }
             if (argc != 2) {
                 fprintf(stderr, "Usage: pesudo <file path>\n");
                 return 1;
             }
-            runBytecode(path);
+            runBytecode(path, false);
         } else {
             fprintf(stderr, "Unknown command: %s\nAvailable commands are:\n- pseudor <file path> : Compiles and runs the program, discarding its bytecode.\n- pseudoc <file path> <target name> : Compiles the program source into .pcbc bytecode.\n- pseudo <file path> : Executes a .pcbc bytecode file.", invoked_as);
             return 1;

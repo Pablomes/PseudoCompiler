@@ -2149,7 +2149,8 @@ static ASTNode* forStatement(Parser* parser) {
     FOR.step = NULL;
 
     if (match(parser, TOK_STEP)) {
-        ASTNode* step = primary(parser);
+        //ASTNode* step = primary(parser);
+        ASTNode* step = unaryExpression(parser);
         if (step == NULL) {
             freeASTNode(forStmt);
             return NULL;
