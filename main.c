@@ -232,53 +232,72 @@ static void runBytecode(const char* path, bool debug) {
     freeVM(&vm);
 }
 
+static void printHelp() {
+    printf("\nCambridge Psuedocode Compiler and Virtual Machine\n"
+           "By Pablo Mestre Alonso              2025\n"
+           "\n"
+           "Commands:\n"
+           "-h -> Show help menu\n"
+           "-cr <file path> -> Compiles and runs pseudocode source.\n"
+           "-c <file path> <target name> -> Compiles pseudocode source and saves bytecode result as .pcbc.\n"
+           "-r <file path> -> Runs pseudocode bytecode (.pcbc file).\n\n");
+}
+
 int main(int argc, char* argv[]) {
+    if (argc == 1) {
+        printHelp();
+        return 0;
+    }
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-h") == 0) {
+            printHelp();
+            return 0;
+        }
+    }
+
     if (argc >= 2) {
-        /*const char* invoked_as = strrchr(argv[0], '/');
-        invoked_as = invoked_as ? invoked_as + 1 : argv[0];*/
+        if (strcmp(argv[1], "-cr") == 0) {
+            const char* path = argv[2];
 
-        const char* invoked_as = getExecutableName(argv[0]);
-
-        const char* path = argv[1];
-
-        if (strcmp(invoked_as, "pseudor") == 0) {
-            if (argc == 3 && strcmp(argv[2], "true") == 0) {
+            if (argc == 4 && strcmp(argv[3], "true") == 0) {
                 runFile(path, true);
                 return 0;
             }
-            if (argc != 2) {
-                fprintf(stderr, "Usage: pseudor <file path>\n");
+            if (argc != 3) {
+                fprintf(stderr, "Usage: pseudo -r <file path>\n");
                 return 1;
             }
             runFile(path, false);
-        } else if (strcmp(invoked_as, "pseudoc") == 0) {
-            if (argc == 4 && strcmp(argv[3], "true") == 0) {
-                compileFile(path, argv[2], true);
+        } else if (strcmp(argv[1], "-c") == 0) {
+            const char* path = argv[2];
+
+            if (argc == 5 && strcmp(argv[4], "true") == 0) {
+                compileFile(path, argv[3], true);
                 return 0;
             }
-            if (argc != 3) {
-                fprintf(stderr, "Usage: pseudoc <file path> <target name>\n");
+            if (argc != 4) {
+                fprintf(stderr, "Usage: pseudo -c <file path> <target name>\n");
                 return 1;
             }
 
-            compileFile(path, argv[2], false);
-        } else if (strcmp(invoked_as, "pseudo") == 0) {
-            if (argc == 3 && strcmp(argv[2], "true")) {
+            compileFile(path, argv[3], false);
+        } else if (strcmp(argv[1], "-r") == 0) {
+            const char* path = argv[2];
+
+            if (argc == 4 && strcmp(argv[3], "true") == 0) {
                 runBytecode(path, true);
                 return 0;
             }
-            if (argc != 2) {
-                fprintf(stderr, "Usage: pesudo <file path>\n");
+            if (argc != 3) {
+                fprintf(stderr, "Usage: pseudo -r <file path>\n");
                 return 1;
             }
             runBytecode(path, false);
         } else {
-            fprintf(stderr, "Unknown command: %s\nAvailable commands are:\n- pseudor <file path> : Compiles and runs the program, discarding its bytecode.\n- pseudoc <file path> <target name> : Compiles the program source into .pcbc bytecode.\n- pseudo <file path> : Executes a .pcbc bytecode file.", invoked_as);
-            return 1;
+            fprintf(stderr, "Unknown command.\n");
+            printHelp();
         }
-    } else {
-        fprintf(stderr, "Usage: %s <file path> <target name>?\n", argv[0]);
-        return 1;
     }
 
     return 0;
